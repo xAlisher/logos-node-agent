@@ -18,10 +18,6 @@ NODE_LOG_DIR="${NODE_LOG_DIR:-$NODE_HOME}"
 NODE_CONFIG="${NODE_CONFIG:-$NODE_HOME/user_config.yaml}"
 NODE_UNIT="${NODE_UNIT:-}"                       # the logoscore path has no systemd unit
 export NODE_BINARY="${NODE_BINARY:-}"            # nor a raw binary
-ZONE_BOARD_DIR="${ZONE_BOARD_DIR:-$RUNBOOK_ROOT/state/zone-board-v0.2.2}"
-ZONE_BOARD_TMUX_SESSION="${ZONE_BOARD_TMUX_SESSION:-zone-board}"
-ZONE_CHANNEL="${ZONE_CHANNEL:-local}"
-DASHBOARD_LIVE_CHANNEL_CACHE="${DASHBOARD_LIVE_CHANNEL_CACHE:-$ZONE_BOARD_DIR/dashboard-live-channels.json}"
 WALLET_PUBLIC_KEY="${WALLET_PUBLIC_KEY:-}"
 
 if [[ -z "$WALLET_PUBLIC_KEY" && -f "$NODE_CONFIG" ]]; then
@@ -39,8 +35,4 @@ exec python3 dashboard/server.py \
   --node-api "$NODE_API" \
   --log-dir "$NODE_LOG_DIR" \
   --node-unit "$NODE_UNIT" \
-  --zone-board-dir "$ZONE_BOARD_DIR" \
-  --zone-board-tmux-session "$ZONE_BOARD_TMUX_SESSION" \
-  --local-zone-channel "$ZONE_CHANNEL" \
-  --wallet-public-key "$WALLET_PUBLIC_KEY" \
-  --live-channel-cache "$DASHBOARD_LIVE_CHANNEL_CACHE"
+  --wallet-public-key "$WALLET_PUBLIC_KEY"
