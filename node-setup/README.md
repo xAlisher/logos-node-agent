@@ -87,8 +87,13 @@ for the demo, show *funded + Online + height tracking tip*).
 - **Restart during bootstrap loses progress** — don't restart a bootstrapping node; let it reach Online.
 - **`generate_user_config` is one-shot** — it won't overwrite an existing `user_config.yaml`; delete
   `user_config.yaml` + the db/state to redo.
-- **Bootstrapping ~1h is normal** — `mode` stays `Bootstrapping`, `LIB` sits at genesis; only `height`
-  climbing proves life.
+- **Bootstrapping ~1h is normal** — `state` stays `Bootstrapping`, `LIB` sits at genesis; only `height`
+  climbing proves life. The node reaches `Online` after this window.
+- **Blend starts automatically and "waits" — that's expected.** Blend is the node's built-in privacy /
+  mix-network service (anonymized message routing). It comes up with the node and logs
+  `Blend service: Waiting for chain to become Online mode` — it stays in that waiting state throughout the
+  ~1h bootstrap and activates once the chain is `Online`. Early `Blend … Starting` errors are transient
+  noise, not a failure. Nothing to do — just let bootstrap finish.
 
 ## Rehearsal plan (optiplex, user `dar`)
 

@@ -83,7 +83,36 @@ lines), and surface anything that needs them promptly.
 `n_peers > 0` **and** `height` climbing → eventually `state: Online`. Judge by **height**, never by any UI
 label (the GUI mislabels the network). `node-setup/scripts/healthcheck.sh` encodes this.
 
-## 6. Rules
+## 6. When it's green: present the final report  ·  (your closing message)
+
+Once `healthcheck.sh` is GREEN and the dashboard is up, give the operator a clear closing report — **what you
+did and where to watch their node.** Fill in the real values (get the Tailscale IP from `tailscale ip -4` or
+the assess output). Example:
+
+> ✅ **Your Logos node is up and running.**
+>
+> **What I did:** installed the node tools + `blockchain_module 0.2.1`, generated its config with the current
+> testnet peers, started it syncing, and brought up a dashboard.
+>
+> **Node status:** `Bootstrapping`, height 12,180 and climbing, **48 peers** — GREEN. It'll reach `Online`
+> after the ~1h bootstrap window; it keeps running on its own (tmux, no login needed).
+>
+> **What's normal to see:** the node's **Blend** service (its built-in privacy / mix-network layer) starts
+> automatically and logs a "waiting for the chain to become Online" message the whole time it's
+> bootstrapping — that's expected, not an error. Bootstrap to `Online` takes about an hour.
+>
+> **📊 Watch it from your phone:** **http://100.x.x.x:8090** (over Tailscale) — live state, height, peers,
+> and wallet balance. Or from the box: `curl http://localhost:8080/cryptarchia/info`.
+>
+> **Your next step:** fund it — grep your key with `grep -A3 known_keys ~/logos-node/user_config.yaml`, paste
+> it into the faucet (https://testnet.blockchain.logos.co/web/faucet/). It auto-stakes; ~3.5 h to
+> consensus-eligible.
+>
+> Anything you'd like me to change or explain?
+
+Always include the **dashboard link** (the node's "face") and the one-line status. Keep it warm and short.
+
+## 7. Rules
 
 - **Idempotent.** Re-running `setup-node.sh` is safe; it skips done steps. `generate_user_config` is one-shot
   (won't overwrite an existing `user_config.yaml`) — to redo, delete `user_config.yaml` + `~/.logoscore` state.
