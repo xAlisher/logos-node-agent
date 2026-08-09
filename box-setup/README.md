@@ -12,7 +12,7 @@ An agent can walk these; a human can follow the reference docs directly. The goa
 2. **Base setup** — updates, a hostname, basic hardening. → `reference/02-base-setup.md`
 3. **System dependencies** (the one sudo step node-setup needs):
    ```bash
-   sudo apt update && sudo apt install -y git curl jq tmux python3 gh
+   sudo apt update && sudo apt install -y git curl jq tmux python3 gh fuse3
    ```
 4. **Tailscale + Tailscale SSH** — your access path *and* how phones reach the dashboard.
    → `reference/03-tailscale.md`

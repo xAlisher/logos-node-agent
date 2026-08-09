@@ -14,11 +14,13 @@ say "════════ logos-node-agent · box assessment ═════
 OS=$(. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown}")
 ARCH=$(uname -m); GLIBC=$(getconf GNU_LIBC_VERSION 2>/dev/null | awk '{print $2}')
 FREE_GB=$(df -BG --output=avail "$HOME" 2>/dev/null | awk 'NR==2{gsub(/[^0-9]/,"");print}')
-MISS=""; for c in git curl jq tmux python3 gh; do have "$c" || MISS="$MISS $c"; done
+MISS=""; for c in git curl jq tmux python3; do have "$c" || MISS="$MISS $c"; done   # core (gating)
+REC="";  for c in gh; do have "$c" || REC="$REC $c"; done                          # recommended (non-gating)
+ldconfig -p 2>/dev/null | grep -qE 'libfuse3\.so\.3|libfuse\.so\.2' || REC="$REC fuse3"  # AppImage tools mount via FUSE
 TS=$(have tailscale && (tailscale ip -4 2>/dev/null | head -1) || echo "NO"); CC=$(have claude && echo yes || echo no)
 say ""; say "BOX"
 say "  os=$OS  arch=$ARCH  glibc=${GLIBC:-?}  free=${FREE_GB:-?}G"
-say "  deps missing:${MISS:- none}   tailscale=${TS:-NO}   claude-code=$CC"
+say "  deps missing:${MISS:- none}   recommended:${REC:- none}   tailscale=${TS:-NO}   claude-code=$CC"
 BOX_READY=yes
 [ "$ARCH" = "x86_64" ] || BOX_READY=no
 [ -z "$MISS" ] || BOX_READY=no
@@ -51,6 +53,7 @@ say "  http://localhost:8090 → $([ "$DASH" = 200 ] && echo UP || echo down)"
 
 # ── recommendation ──
 say ""; say "──────── RECOMMENDATION ────────"
+[ -n "$REC" ] && say "  (recommended, optional: sudo apt install -y$REC  —  gh: GitHub ops · fuse3: lets the AppImage tools mount instead of extract; setup-node auto-falls-back if absent)"
 if [ "$BOX_READY" != yes ]; then
   say "→ BOX NOT READY. Run the optional box-setup skill first (see box-setup/README.md):"
   [ -n "$MISS" ] && say "    system deps:  sudo apt update && sudo apt install -y$MISS"

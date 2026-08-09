@@ -27,7 +27,7 @@ FREE_GB=$(df -BG --output=avail "$HOME" 2>/dev/null | awk 'NR==2{gsub(/[^0-9]/,"
 [ "${FREE_GB:-0}" -ge 64 ] || echo "  ⚠ only ${FREE_GB:-?}G free at \$HOME; docs want ≥ 64G"
 # system deps (installed once during box prep — the only sudo step): git curl jq tmux python3
 MISSING=""
-for c in git curl jq tmux python3 gh; do command -v "$c" >/dev/null 2>&1 || MISSING="$MISSING $c"; done
+for c in git curl jq tmux python3; do command -v "$c" >/dev/null 2>&1 || MISSING="$MISSING $c"; done
 if [ -n "$MISSING" ]; then
   echo "  ✗ missing deps:$MISSING"
   echo "    install once (needs sudo, box-prep):  sudo apt update && sudo apt install -y$MISSING"
@@ -36,6 +36,12 @@ if [ -n "$MISSING" ]; then
   echo "  ⚠ continuing, but jq/tmux/python3 are needed later (verify / persistence / dashboard)"
 fi
 command -v tailscale >/dev/null 2>&1 || echo "  ⚠ tailscale not found — needed for SSH access + dashboard reachability"
+# The node tools (logoscore/lgpd/lgpm) are AppImages: they mount via FUSE. On a box without a FUSE lib
+# (fresh Ubuntu 24.04 can lack it), fall back to extract-and-run so they still work — no sudo needed.
+if ! ldconfig -p 2>/dev/null | grep -qE 'libfuse3\.so\.3|libfuse\.so\.2'; then
+  export APPIMAGE_EXTRACT_AND_RUN=1
+  echo "  ⚠ no FUSE lib → APPIMAGE_EXTRACT_AND_RUN=1 (tools extract instead of mount; install fuse3 for faster runs)"
+fi
 ok "x86_64 · glibc ${GLIBC:-?} · ${FREE_GB:-?}G free · deps:${MISSING:- all present}"
 
 mkdir -p "$NODE_HOME"; cd "$NODE_HOME"
