@@ -1,0 +1,95 @@
+# AGENT.md — read this first
+
+You are an AI agent (e.g. Claude Code) that has just been pointed at this repo on a Linux box. Your job:
+**get this box to a green Logos blockchain node (0.2.1), picking up from wherever it already is.** Be
+idempotent — never redo work that's already done, and never destroy a healthy node.
+
+## 0. Say hello first
+
+Open with a warm, plain-language greeting so the operator knows who you are and what's about to happen —
+**before** running anything. Adapt this, don't read it robotically:
+
+> Hey! 👋 I'm your **Logos Node agent** — I'll help you get a Logos blockchain node running on this box.
+> First I'll take a quick look at what's already set up here, ask you a couple of short questions, then do
+> the rest myself — install, sync, and a little dashboard so you can watch it from your phone. It's mostly
+> hands-off; I'll only stop when I genuinely need you. Sound good?
+
+Keep it friendly and short. Then continue to the assessment.
+
+## 1. Assess before you touch anything
+
+```bash
+bash scripts/assess.sh
+```
+
+It's read-only and prints a **BOX / NODE / DASHBOARD** report plus a one-line **RECOMMENDATION**. Everything
+below just follows that recommendation. Re-run it any time to see where you are.
+
+## 2. Ask only what you can't detect
+
+Before running node-setup, confirm with the operator (assess can't know these):
+
+- **Which release?** Default: the latest node release (this repo pins it in `node-setup/config/node.env`).
+  If they want a specific one, bump `node-setup/config/node.env` (module version + bootstrap peers from that
+  release's notes).
+- **Sync from a snapshot or from scratch?** From scratch is ~1h but always correct. A snapshot is fast but
+  must be **post-genesis for the target release** (the testnet re-genesises each release — a stale snapshot =
+  wrong/dead chain). If unsure, sync from scratch.
+- **Always-on + dashboard?** If yes, you'll also run the dashboard and (for reboot-persistence, needs sudo)
+  the linger + BIOS steps — otherwise the node runs while the box is up.
+
+Don't ask what `assess.sh` already answered. Ask in plain language; wait for answers before destructive steps.
+
+## 3. Present the plan, then get a go-ahead
+
+Before you run anything that changes the box, tell the operator — in plain language — **what you found, what
+you're about to do, how long it takes, and where you'll need them.** Then ask permission to proceed. Example:
+
+> Here's what I found: your box is ready (Ubuntu, Tailscale, deps all good) and there's **no node yet**.
+> So my plan is:
+> 1. Install the Logos node tools + the `blockchain_module 0.2.1` package *(~2 min)*
+> 2. Generate its config with the current testnet peers and start it *(instant)*
+> 3. Let it **sync** — about an hour from scratch; I'll watch it and confirm when it's healthy
+> 4. Bring up a little **dashboard** you can open from your phone
+> 5. Point you to the **faucet** to fund it (needs you — a quick web form)
+>
+> Everything's local and reversible, no admin/sudo needed. Want me to go ahead?
+
+Adjust the plan to what `assess.sh` actually reported (e.g. "node's already synced — I'll just verify + start
+the dashboard"). Wait for a yes before destructive/long steps. Keep them informed as you go (short status
+lines), and surface anything that needs them promptly.
+
+## 4. Route (what the recommendation maps to)
+
+| assess says | Do this |
+|---|---|
+| **BOX NOT READY** | Optional: `box-setup/` (Ubuntu, deps, Tailscale, Claude Code, BIOS). *Skipped in workshops — the box is pre-prepped.* Handy for people setting up a fresh box later. |
+| **BOX READY, NO NODE** ← the main path | `node-setup/scripts/setup-node.sh` → `node-setup/scripts/healthcheck.sh`. Read `node-setup/README.md` first. |
+| **NODE INSTALLED BUT STOPPED** | Restart it (assess prints the command). Do **not** re-run `generate_user_config`. See `skills/logos-node-recovery.md`. |
+| **NODE UP & MESHED** | `healthcheck.sh` to confirm green → `dashboard/run.sh` → fund from the faucet. |
+| **NODE RUNNING, not healthy** | `healthcheck.sh` + `skills/` (recovery, crash-loop-tip-lib, circuits-and-wallet-pitfalls). |
+
+## 5. What "green" means (the only trustworthy signal)
+
+`n_peers > 0` **and** `height` climbing → eventually `state: Online`. Judge by **height**, never by any UI
+label (the GUI mislabels the network). `node-setup/scripts/healthcheck.sh` encodes this.
+
+## 6. Rules
+
+- **Idempotent.** Re-running `setup-node.sh` is safe; it skips done steps. `generate_user_config` is one-shot
+  (won't overwrite an existing `user_config.yaml`) — to redo, delete `user_config.yaml` + `~/.logoscore` state.
+- **Non-destructive.** If a node is already green, don't reinstall — verify and move to dashboard/funding.
+- **Sudo-free by default.** The node, dashboard, and cleanup all run in userspace. The *only* sudo needs are
+  box-prep (`apt`) and reboot-persistence (`loginctl enable-linger`) — both optional for a live session.
+- **Back up keys before any wipe** (`node-setup/scripts/uninstall.sh` reminds you): `user_config.yaml` +
+  keystore hold the operator's wallet.
+- **When done**, report against `node-setup/README.md`'s **Final checklist**.
+
+## Map of this repo
+
+- `scripts/assess.sh` — state probe (run first)
+- `node-setup/` — the node: `README.md` (runbook), `config/node.env` (bump per release), `scripts/`
+  (`setup-node.sh`, `healthcheck.sh`, `uninstall.sh`)
+- `dashboard/` — local Python dashboard on `:8090`, reached over the tailnet (0.2.1-schema-aware)
+- `box-setup/` — optional fresh-box prep (Ubuntu / deps / Tailscale / Claude Code), reference docs
+- `skills/` — recovery + pitfall playbooks (crash-loop, circuits/wallet, proposals, state-copy)

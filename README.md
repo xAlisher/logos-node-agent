@@ -1,0 +1,58 @@
+# logos-node-agent
+
+**Point your AI agent at this repo and get a running Logos blockchain node.**
+
+Clone it onto a Linux box, tell your agent (Claude Code or similar) to read **[AGENT.md](AGENT.md)**, and it
+will assess what's already there, ask you the few things it can't detect, and bring the box to a **green
+Logos node (v0.2.1) + a live dashboard** — picking up from wherever the box already is, without redoing done
+work or breaking a healthy node.
+
+Built for the Logos EcoDev node-operator workshops; reusable by anyone.
+
+## Quickstart
+
+```bash
+git clone https://github.com/xAlisher/logos-node-agent.git
+cd logos-node-agent
+bash scripts/assess.sh        # what's here + the recommended next step
+```
+
+Then point your agent at **AGENT.md** and let it drive — or follow the steps by hand:
+
+```bash
+node-setup/scripts/setup-node.sh      # install + configure + start the node (no sudo)
+node-setup/scripts/healthcheck.sh     # GREEN = peers > 0 and height climbing → Online
+dashboard/run.sh                      # local dashboard on :8090, reached over your tailnet
+```
+
+## What you get
+
+- **A synced node** via the upstream-documented path (`logoscore` + `blockchain_module`), not a fork or a
+  raw binary — the same way the official docs tell strangers to do it.
+- **A dashboard** (stdlib Python, no pip) showing state / height / peers / wallet balance, reachable from
+  your phone over Tailscale.
+- **Sudo-free** end to end (the box's one-time `apt` prep and reboot-persistence are the only sudo touches).
+- An agent that **resumes intelligently**: box not ready → optional box-setup; box ready, no node →
+  node-setup; node already green → just verify + dashboard.
+
+## Layout
+
+| Path | What |
+|---|---|
+| **[AGENT.md](AGENT.md)** | The orchestrator your agent reads first (assess → ask → route → resume). |
+| `scripts/assess.sh` | Read-only probe: what's on the box + the next step. |
+| `node-setup/` | The node — [`README.md`](node-setup/README.md) (runbook), `config/node.env` (bump per release), `scripts/`. |
+| `dashboard/` | The local dashboard (`:8090`, tailnet-reachable). |
+| `box-setup/` | **Optional** fresh-box prep (Ubuntu / deps / Tailscale / Claude Code / BIOS). *Skipped in workshops.* |
+| `skills/` | Recovery + pitfall playbooks (crash-loop, circuits/wallet, proposals, state-copy). |
+
+## Requirements
+
+Ubuntu 24.04 x86_64 · glibc ≥ 2.39 · ≥ 64 GB disk · ~8 GB RAM · Tailscale (access + dashboard). Full list
+and the one-time `apt` line: **[node-setup/README.md](node-setup/README.md)** → *Prerequisites & dependencies*.
+
+## Credits
+
+Distilled from the Logos node runbook built for Circle stewards, aligned to the official
+[Run a node from the CLI](https://docs.logos.co/blockchain/get-started/run-a-logos-blockchain-node-from-cli)
+guide. License: MIT.

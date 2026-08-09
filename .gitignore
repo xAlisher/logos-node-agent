@@ -1,0 +1,5 @@
+logos-node/
+.logoscore/
+*.lgx
+setup.log
+__pycache__/

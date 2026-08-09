@@ -1,0 +1,1110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Logos Node Status</title>
+  <style>
+    :root {
+      --bg: #030504;
+      --panel: #0a0d0b;
+      --panel-2: #111611;
+      --text: #e6f7ec;
+      --muted: #6f8175;
+      --good: #39ff88;
+      --warn: #d5f567;
+      --bad: #ff5d5d;
+      --accent: #39ff88;
+      --accent-dim: rgba(57, 255, 136, 0.13);
+      --border: #1d2a20;
+      --border-hot: #2d6f42;
+      --shadow: rgba(0, 0, 0, 0.62);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 12% 0%, rgba(57, 255, 136, 0.08), transparent 28%),
+        linear-gradient(180deg, #000 0%, #050805 55%, #0a0d0b 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+      letter-spacing: -0.03em;
+      text-shadow: 0 0 18px rgba(57, 255, 136, 0.18);
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .subtitle code {
+      color: var(--text);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .card, .panel {
+      background: linear-gradient(180deg, rgba(14, 18, 14, 0.96), rgba(5, 8, 5, 0.96));
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 18px 42px var(--shadow), inset 0 1px 0 rgba(57, 255, 136, 0.04);
+    }
+
+    .card {
+      padding: 16px;
+    }
+
+    .label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .value {
+      font-size: 22px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .status-online { color: var(--good); }
+    .status-bootstrapping { color: var(--warn); }
+    .status-offline { color: var(--bad); }
+
+    .panel {
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .panel-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin: 12px 0 14px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, monospace;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow: auto;
+      max-height: 540px;
+      background:
+        linear-gradient(rgba(57, 255, 136, 0.018) 1px, transparent 1px),
+        #020402;
+      background-size: 100% 24px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      line-height: 1.45;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .meta {
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .error {
+      color: var(--bad);
+    }
+
+    .message-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      height: 420px;
+      overflow-y: scroll;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background:
+        linear-gradient(rgba(57, 255, 136, 0.025) 1px, transparent 1px),
+        #030504;
+      background-size: 100% 28px;
+      overscroll-behavior: contain;
+      scroll-behavior: smooth;
+      scrollbar-gutter: stable;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 12px;
+    }
+
+    .tab {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #050805;
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      padding: 6px 10px;
+    }
+
+    .tab.active {
+      border-color: var(--accent);
+      color: var(--text);
+      background: var(--accent-dim);
+      box-shadow: 0 0 0 1px rgba(57, 255, 136, 0.12), 0 0 18px rgba(57, 255, 136, 0.08);
+    }
+
+    .tab.subscribe-tab {
+      border-color: rgba(57, 255, 136, 0.75);
+      color: #d7ffe2;
+      background: linear-gradient(135deg, rgba(57, 255, 136, 0.18), rgba(9, 14, 9, 0.9));
+      font-weight: 700;
+    }
+
+    .message {
+      padding: 14px 16px;
+      background: linear-gradient(180deg, rgba(10, 14, 10, 0.98), rgba(4, 7, 4, 0.98));
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--border-hot);
+      border-radius: 7px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+    }
+
+    .message-channel {
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      margin-bottom: 6px;
+      text-transform: lowercase;
+    }
+
+    .message-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .message-text {
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .message-meta code {
+      color: var(--muted);
+    }
+
+    .proposal-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #030504;
+    }
+
+    .proposal-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .proposal-table th,
+    .proposal-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(57, 255, 136, 0.08);
+      vertical-align: top;
+    }
+
+    .proposal-table th {
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: rgba(6, 10, 7, 0.92);
+    }
+
+    .proposal-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .proposal-status {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .composer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .composer input {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #030504;
+      color: var(--text);
+      font: inherit;
+      padding: 10px 12px;
+      outline: none;
+    }
+
+    .composer input:focus {
+      border-color: var(--accent);
+    }
+
+    .composer button {
+      border: 1px solid var(--border-hot);
+      border-radius: 6px;
+      background: #12371f;
+      color: #eaffef;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      padding: 10px 14px;
+    }
+
+    .composer button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .send-status {
+      min-height: 18px;
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.74);
+      backdrop-filter: blur(8px);
+      z-index: 20;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      width: min(520px, 100%);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+      padding: 18px;
+    }
+
+    .modal h3 {
+      margin: 0 0 8px;
+      font-size: 20px;
+    }
+
+    .modal p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .secondary-button,
+    .primary-button {
+      border-radius: 10px;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      padding: 10px 14px;
+    }
+
+    .secondary-button {
+      border: 1px solid var(--border);
+      background: #020402;
+      color: var(--text);
+    }
+
+    .primary-button {
+      border: 1px solid #16a34a;
+      background: #16a34a;
+      color: #f0fdf4;
+    }
+
+    @media (max-width: 640px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .composer {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Logos Node Status</h1>
+    <div id="subtitle" class="subtitle">Local dashboard for sync state and recent node logs.</div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="label">Mode</div>
+        <div id="mode" class="value">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Height</div>
+        <div id="height" class="value">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Slot</div>
+        <div id="slot" class="value">-</div>
+      </div>
+      <div class="card">
+        <div class="label">LIB Slot</div>
+        <div id="libSlot" class="value">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Balance</div>
+        <div id="balance" class="value">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Peers</div>
+        <div id="peerCount" class="value">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Vouchers</div>
+        <div id="voucherCount" class="value">-</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Chain View</h2>
+      <div class="row">
+        <div><strong>Tip:</strong> <code id="tip">-</code></div>
+        <div><strong>LIB:</strong> <code id="lib">-</code></div>
+      </div>
+      <div class="row" style="margin-top: 10px;">
+        <div><strong>API:</strong> <code id="apiUrl">-</code></div>
+        <div><strong>Last refresh:</strong> <span id="lastRefresh">-</span></div>
+      </div>
+      <div id="statusError" class="error" style="margin-top: 12px;"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Block Proposals</h2>
+      <div class="meta" id="proposalMeta">Loading proposal activity…</div>
+      <div class="panel-grid">
+        <div class="card">
+          <div class="label">Recent Proposals</div>
+          <div id="proposalsToday" class="value">-</div>
+        </div>
+        <div class="card">
+          <div class="label">Non-empty Recent</div>
+          <div id="nonEmptyToday" class="value">-</div>
+        </div>
+        <div class="card">
+          <div class="label">0-tx Recent</div>
+          <div id="zeroTxToday" class="value">-</div>
+        </div>
+        <div class="card">
+          <div class="label">Last Slot</div>
+          <div id="lastProposalSlot" class="value">-</div>
+        </div>
+      </div>
+      <div class="row" style="margin-bottom: 12px;">
+        <div><strong>Last block:</strong> <code id="lastProposalBlock">-</code></div>
+      </div>
+      <div class="proposal-table-wrap">
+        <table class="proposal-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Slot</th>
+              <th>Block ID</th>
+              <th>Tx</th>
+              <th>Removed</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="proposalRows">
+            <tr><td colspan="6">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="proposalError" class="error" style="margin-top: 12px;"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Zone Messages</h2>
+      <div class="meta" id="zoneMeta">Loading zone messages…</div>
+      <div id="zoneTabs" class="tabs" aria-label="Zone channels"></div>
+      <div id="zoneMessages" class="message-list">Loading…</div>
+      <form id="zoneComposer" class="composer">
+        <input id="zoneInput" maxlength="500" placeholder="Publish to alisher channel…" autocomplete="off">
+        <button id="zoneSend" type="submit">Send</button>
+      </form>
+      <div id="zoneSendStatus" class="send-status"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Recent Logs</h2>
+      <div class="meta" id="logMeta">Loading logs…</div>
+      <pre id="logs">Loading…</pre>
+    </div>
+  </div>
+
+  <div id="subscribeModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="subscribeTitle">
+    <form id="subscribeForm" class="modal">
+      <h3 id="subscribeTitle">Subscribe to Channel</h3>
+      <p>Enter a human name like <code>vpavlin</code> or a raw 64-character channel id.</p>
+      <div class="composer">
+        <input id="subscribeInput" maxlength="64" placeholder="channel name or id" autocomplete="off">
+        <button id="subscribeSubmit" class="primary-button" type="submit">Subscribe</button>
+      </div>
+      <div id="subscribeStatus" class="send-status"></div>
+      <div class="modal-actions">
+        <button id="subscribeCancel" class="secondary-button" type="button">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    const els = {
+      mode: document.getElementById("mode"),
+      height: document.getElementById("height"),
+      slot: document.getElementById("slot"),
+      voucherCount: document.getElementById("voucherCount"),
+      libSlot: document.getElementById("libSlot"),
+      balance: document.getElementById("balance"),
+      peerCount: document.getElementById("peerCount"),
+      tip: document.getElementById("tip"),
+      lib: document.getElementById("lib"),
+      apiUrl: document.getElementById("apiUrl"),
+      lastRefresh: document.getElementById("lastRefresh"),
+      statusError: document.getElementById("statusError"),
+      proposalMeta: document.getElementById("proposalMeta"),
+      proposalsToday: document.getElementById("proposalsToday"),
+      nonEmptyToday: document.getElementById("nonEmptyToday"),
+      zeroTxToday: document.getElementById("zeroTxToday"),
+      lastProposalSlot: document.getElementById("lastProposalSlot"),
+      lastProposalBlock: document.getElementById("lastProposalBlock"),
+      proposalRows: document.getElementById("proposalRows"),
+      proposalError: document.getElementById("proposalError"),
+      zoneComposer: document.getElementById("zoneComposer"),
+      zoneInput: document.getElementById("zoneInput"),
+      zoneSend: document.getElementById("zoneSend"),
+      zoneSendStatus: document.getElementById("zoneSendStatus"),
+      zoneMeta: document.getElementById("zoneMeta"),
+      zoneTabs: document.getElementById("zoneTabs"),
+      zoneMessages: document.getElementById("zoneMessages"),
+      subscribeModal: document.getElementById("subscribeModal"),
+      subscribeForm: document.getElementById("subscribeForm"),
+      subscribeInput: document.getElementById("subscribeInput"),
+      subscribeSubmit: document.getElementById("subscribeSubmit"),
+      subscribeStatus: document.getElementById("subscribeStatus"),
+      subscribeCancel: document.getElementById("subscribeCancel"),
+      logMeta: document.getElementById("logMeta"),
+      logs: document.getElementById("logs"),
+      subtitle: document.getElementById("subtitle"),
+    };
+
+    let selectedZoneChannel = "all";
+    let latestZoneChannels = [];
+    const ZONE_REFRESH_MS = 5000;
+    const PANEL_REFRESH_MS = 5000;
+    const PROPOSAL_REFRESH_MS = 20000;
+
+    function setMode(mode) {
+      els.mode.textContent = mode || "-";
+      els.mode.className = "value";
+      const lower = String(mode || "").toLowerCase();
+      if (lower === "online") els.mode.classList.add("status-online");
+      else if (lower === "bootstrapping") els.mode.classList.add("status-bootstrapping");
+      else els.mode.classList.add("status-offline");
+    }
+
+    async function loadStatus() {
+      try {
+        const res = await fetch("/api/status", { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || "Status request failed");
+        }
+        setMode(data.mode);
+        els.height.textContent = data.height ?? "-";
+        els.slot.textContent = data.slot ?? "-";
+        els.libSlot.textContent = data.lib_slot ?? "-";
+        els.voucherCount.textContent = data.voucher_count ?? "-";
+        if (data.wallet?.ok) {
+          els.balance.textContent = `${data.wallet.balance ?? "-"} LGO`;
+          els.balance.title = data.wallet.address || "";
+        } else {
+          els.balance.textContent = "-";
+          els.balance.title = data.wallet?.error || "";
+        }
+        if (data.network?.ok) {
+          els.peerCount.textContent = data.network.n_peers ?? "-";
+          els.peerCount.title = `${data.network.n_connections ?? 0} connections`;
+        } else {
+          els.peerCount.textContent = "-";
+          els.peerCount.title = data.network?.error || "";
+        }
+        els.tip.textContent = data.tip ?? "-";
+        els.lib.textContent = data.lib ?? "-";
+        els.apiUrl.textContent = data.url ?? "-";
+        els.subtitle.innerHTML = data.node_version
+          ? `Local dashboard for sync state and recent node logs. Compatible with: <code>logos-blockchain-node ${data.node_version}</code>`
+          : "Local dashboard for sync state and recent node logs.";
+        els.statusError.textContent = "";
+      } catch (err) {
+        setMode("Offline");
+        els.subtitle.textContent = "Local dashboard for sync state and recent node logs.";
+        els.statusError.textContent = String(err);
+      } finally {
+        els.lastRefresh.textContent = new Date().toLocaleTimeString();
+      }
+    }
+
+    function shortId(value) {
+      const text = String(value || "");
+      return text.length > 16 ? `${text.slice(0, 12)}...` : text || "-";
+    }
+
+    function formatIsoLocal(value) {
+      const parsed = Date.parse(value || "");
+      if (!Number.isFinite(parsed)) return value || "-";
+      return new Date(parsed).toLocaleString([], {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+    }
+
+    async function loadLogs() {
+      try {
+        const res = await fetch("/api/logs", { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || "Logs request failed");
+        }
+        els.logMeta.textContent = `${data.latest_file} from ${data.log_dir}`;
+        els.logs.textContent = (data.lines || []).join("\n") || "No log lines yet.";
+      } catch (err) {
+        els.logMeta.textContent = "Logs unavailable";
+        els.logs.textContent = String(err);
+      }
+    }
+
+    async function loadProposals() {
+      try {
+        const res = await fetch("/api/proposals", { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || "Proposal request failed");
+        }
+
+        const summary = data.summary || {};
+        const recent = [...(data.recent || [])].reverse();
+        els.proposalsToday.textContent = summary.proposals_recent ?? "-";
+        els.nonEmptyToday.textContent = summary.non_empty_recent ?? "-";
+        els.zeroTxToday.textContent = summary.zero_tx_recent ?? "-";
+        els.lastProposalSlot.textContent = summary.last_slot ?? "-";
+        els.lastProposalBlock.textContent = shortId(summary.last_block_id);
+        els.lastProposalBlock.title = summary.last_block_id || "";
+        els.proposalMeta.textContent = summary.last_proposal_at
+          ? `Last proposal: ${formatIsoLocal(summary.last_proposal_at)}; window: latest ${summary.window_files ?? "-"} log files`
+          : "No recent proposal activity found.";
+        els.proposalError.textContent = "";
+
+        if (!recent.length) {
+          els.proposalRows.innerHTML = '<tr><td colspan="6">No recent proposals.</td></tr>';
+          return;
+        }
+
+        els.proposalRows.replaceChildren(
+          ...recent.map((proposal) => {
+            const row = document.createElement("tr");
+            const fields = [
+              formatIsoLocal(proposal.timestamp),
+              proposal.slot ?? "-",
+              shortId(proposal.block_id),
+              proposal.tx_count ?? "-",
+              proposal.removed_count ?? "-",
+              proposal.status ?? "proposed",
+            ];
+            fields.forEach((field, index) => {
+              const cell = document.createElement("td");
+              cell.textContent = String(field);
+              if (index === 2) cell.title = proposal.block_id || "";
+              if (index === 5) cell.className = "proposal-status";
+              row.append(cell);
+            });
+            return row;
+          })
+        );
+      } catch (err) {
+        els.proposalMeta.textContent = "Proposal activity unavailable";
+        els.proposalRows.innerHTML = '<tr><td colspan="6">Proposal activity unavailable.</td></tr>';
+        els.proposalError.textContent = String(err);
+      }
+    }
+
+    function channelMessageCount(channel) {
+      return (channel.messages || []).length;
+    }
+
+    function messageText(message) {
+      return String(message.text || "")
+        .replace(/\s+\(pending…\)$/u, "")
+        .replace(/\s+\(pending\.\.\.\)$/u, "")
+        .trim();
+    }
+
+    function messageKey(message) {
+      if (message.block_id) return `block:${message.block_id}`;
+      if (message.slot != null && message.text) return `slot:${message.slot}\u0000${messageText(message)}`;
+      return `${messageText(message)}\u0000${message.timestamp_iso || ""}\u0000${message.timestamp || ""}\u0000${message.observed_at || ""}`;
+    }
+
+    function canonicalMessageText(message) {
+      return messageText(message);
+    }
+
+    function messageStatus(message) {
+      const rawText = String(message.text || "");
+      if (/\s+\(pending…\)$/u.test(rawText) || /\s+\(pending\.\.\.\)$/u.test(rawText)) {
+        return "pending";
+      }
+      return message.status || (message.source === "live-tui"
+        ? "live"
+        : message.failed ? "failed" : message.pending ? "pending" : "confirmed");
+    }
+
+    function messageSource(message) {
+      if (message.block_id) return `block ${message.block_id.slice(0, 12)}…`;
+      if (message.source === "live-tui") return "TUI";
+      return "unknown";
+    }
+
+    function messageRank(message) {
+      const status = messageStatus(message);
+      if (status === "finalized") return 4;
+      if (message.block_id) return 3;
+      if (status === "confirmed") return 2;
+      if (status === "pending") return 1;
+      return 0;
+    }
+
+    function preferredMessage(a, b) {
+      if (messageRank(b) > messageRank(a)) return { ...a, ...b, text: messageText(b) || messageText(a) };
+      if (messageRank(a) > messageRank(b)) return { ...b, ...a, text: messageText(a) || messageText(b) };
+      return messageText(b).length > messageText(a).length
+        ? { ...a, ...b, text: messageText(b) }
+        : { ...b, ...a, text: messageText(a) };
+    }
+
+    function sameMessage(a, b) {
+      const aText = canonicalMessageText(a);
+      const bText = canonicalMessageText(b);
+      if (!aText || !bText) return false;
+      if (a.block_id && b.block_id && a.block_id === b.block_id) return true;
+      if (a.slot != null && b.slot != null && Number(a.slot) === Number(b.slot) && aText === bText) return true;
+
+      const shorter = aText.length <= bText.length ? aText : bText;
+      const longer = aText.length > bText.length ? aText : bText;
+      if (shorter.length < 12) return false;
+      return longer.startsWith(shorter) || longer.includes(shorter);
+    }
+
+    function getLiveChannels(live) {
+      return live?.channels?.length
+        ? live.channels
+        : (live?.channel ? [{ channel: live.channel, topic: `live:${live.channel}`, messages: live.messages || [] }] : []);
+    }
+
+    function mergeMessage(messages, incoming) {
+      const key = messageKey(incoming);
+      const keyIndex = messages.findIndex((message) => messageKey(message) === key);
+      if (keyIndex >= 0) {
+        messages[keyIndex] = preferredMessage(messages[keyIndex], incoming);
+        return;
+      }
+
+      const duplicateIndex = messages.findIndex((message) => sameMessage(message, incoming));
+      if (duplicateIndex >= 0) {
+        messages[duplicateIndex] = preferredMessage(messages[duplicateIndex], incoming);
+        return;
+      }
+
+      messages.push(incoming);
+    }
+
+    function mergeChannels(cachedChannels, live) {
+      const channels = new Map();
+      for (const channel of [...(cachedChannels || []), ...getLiveChannels(live)]) {
+        const name = channel.channel || "unknown";
+        const existing = channels.get(name) || {
+          channel: name,
+          topic: channel.topic || name,
+          ok: true,
+          messages: [],
+        };
+        existing.topic = existing.topic || channel.topic || name;
+        existing.ok = existing.ok && channel.ok !== false;
+        for (const message of channel.messages || []) {
+          mergeMessage(existing.messages, message);
+        }
+        channels.set(name, existing);
+      }
+      return [...channels.values()].map((channel) => ({
+        ...channel,
+        messages: sortMessages(channel.messages),
+      }));
+    }
+
+    function renderZoneTabs(channels) {
+      const tabs = [
+        {
+          key: "all",
+          label: `All (${channels.reduce((sum, channel) => sum + channelMessageCount(channel), 0)})`,
+        },
+        ...channels.map((channel) => ({
+          key: channel.topic || channel.channel,
+          label: `${channel.channel || "unknown"} (${channelMessageCount(channel)})`,
+        })),
+      ];
+
+      if (selectedZoneChannel !== "all" && !tabs.some((tab) => tab.key === selectedZoneChannel)) {
+        selectedZoneChannel = "all";
+      }
+
+      els.zoneTabs.replaceChildren(
+        ...tabs.map((tab) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = tab.key === selectedZoneChannel ? "tab active" : "tab";
+          button.textContent = tab.label;
+          button.addEventListener("click", () => {
+            selectedZoneChannel = tab.key;
+            renderZoneTabs(latestZoneChannels);
+            renderZoneMessages(latestZoneChannels);
+          });
+          return button;
+        }),
+        (() => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "tab subscribe-tab";
+          button.textContent = "+ Subscribe";
+          button.addEventListener("click", openSubscribeModal);
+          return button;
+        })()
+      );
+    }
+
+    function visibleZoneChannels(channels) {
+      if (selectedZoneChannel === "all") return channels;
+      return channels.filter((channel) => (channel.topic || channel.channel) === selectedZoneChannel);
+    }
+
+    function isScrolledNearBottom(element) {
+      return element.scrollHeight - element.scrollTop - element.clientHeight < 48;
+    }
+
+    function parseTimestampValue(value) {
+      const time = Date.parse(value || "");
+      return Number.isFinite(time) ? time : 0;
+    }
+
+    function messageDateValue(message) {
+      return parseTimestampValue(message.timestamp_iso) || parseTimestampValue(message.observed_at);
+    }
+
+    function formatMessageTimestamp(message) {
+      const value = message.timestamp_iso || message.observed_at || "";
+      const parsed = Date.parse(value);
+      if (Number.isFinite(parsed)) {
+        return new Date(parsed).toLocaleString([], {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+      }
+      return message.timestamp || "-";
+    }
+
+    function sortMessages(messages) {
+      return [...messages].sort((a, b) => {
+        const byDate = messageDateValue(a) - messageDateValue(b);
+        if (byDate) return byDate;
+
+        const aSlot = Number(a.slot);
+        const bSlot = Number(b.slot);
+        if (Number.isFinite(aSlot) && Number.isFinite(bSlot) && aSlot !== bSlot) {
+          return aSlot - bSlot;
+        }
+
+        return messageText(a).localeCompare(messageText(b));
+      });
+    }
+
+    function renderZoneMessages(channels) {
+      const shouldStickToBottom = isScrolledNearBottom(els.zoneMessages);
+      const parts = [];
+      for (const channel of visibleZoneChannels(channels || [])) {
+        for (const message of channel.messages || []) {
+          parts.push({ channel: channel.channel, order: parts.length, ...message });
+        }
+      }
+
+      const sortedParts = sortMessages(parts);
+
+      if (!sortedParts.length) {
+        els.zoneMessages.textContent = "No synced messages yet.";
+        requestAnimationFrame(() => {
+          els.zoneMessages.scrollTop = els.zoneMessages.scrollHeight;
+        });
+        return;
+      }
+
+      els.zoneMessages.replaceChildren(
+        ...sortedParts.map((message) => {
+          const item = document.createElement("div");
+          item.className = "message";
+
+          const channel = document.createElement("span");
+          channel.className = "message-channel";
+          channel.textContent = message.channel || "unknown";
+
+          const text = document.createElement("div");
+          text.className = "message-text";
+          const fullText = messageText(message);
+          text.textContent = fullText.length > 280 ? `${fullText.slice(0, 280)}...` : fullText;
+          text.title = fullText;
+
+          const meta = document.createElement("div");
+          meta.className = "message-meta";
+
+          const statusText = messageStatus(message);
+          const sourceText = messageSource(message);
+
+          const timestamp = document.createElement("span");
+          timestamp.textContent = formatMessageTimestamp(message);
+
+          const separator = document.createElement("span");
+          separator.textContent = ", ";
+
+          const status = document.createElement("span");
+          status.textContent = `${statusText}: `;
+
+          const block = document.createElement("code");
+          block.textContent = sourceText;
+
+          meta.append(timestamp, separator, status, block);
+          item.append(channel, text, meta);
+          return item;
+        })
+      );
+
+      if (shouldStickToBottom) {
+        requestAnimationFrame(() => {
+          els.zoneMessages.scrollTop = els.zoneMessages.scrollHeight;
+        });
+      }
+    }
+
+    async function loadZoneMessages() {
+      try {
+        const [cacheRes, liveRes] = await Promise.all([
+          fetch("/api/zone-messages", { cache: "no-store" }),
+          fetch("/api/zone-live", { cache: "no-store" }),
+        ]);
+        const data = await cacheRes.json();
+        if (!cacheRes.ok || !data.ok) {
+          throw new Error(data.error || "Zone messages request failed");
+        }
+        let live = null;
+        if (liveRes.ok) {
+          const liveData = await liveRes.json();
+          if (liveData.ok) live = liveData;
+        }
+        latestZoneChannels = mergeChannels(data.channels || [], live);
+        const count = latestZoneChannels.reduce((sum, channel) => sum + (channel.messages || []).length, 0);
+        const names = latestZoneChannels.map((channel) => channel.channel).join(", ") || "none";
+        const liveNote = live?.channel ? `; live TUI: ${live.channel}` : "";
+        els.zoneMeta.textContent = `${count} message(s) from ${names}; cache: ${data.zone_board_dir}${liveNote}`;
+        renderZoneTabs(latestZoneChannels);
+        renderZoneMessages(latestZoneChannels);
+      } catch (err) {
+        els.zoneMeta.textContent = "Zone messages unavailable";
+        els.zoneMessages.textContent = String(err);
+      }
+    }
+
+    async function publishZoneMessage(message) {
+      const res = await fetch("/api/zone-publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Publish request failed");
+      }
+      return data;
+    }
+
+    async function subscribeZoneChannel(channel) {
+      const res = await fetch("/api/zone-subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Subscribe request failed");
+      }
+      return data;
+    }
+
+    function openSubscribeModal() {
+      els.subscribeStatus.textContent = "";
+      els.subscribeInput.value = "";
+      els.subscribeModal.classList.add("open");
+      requestAnimationFrame(() => els.subscribeInput.focus());
+    }
+
+    function closeSubscribeModal() {
+      els.subscribeModal.classList.remove("open");
+    }
+
+    els.zoneComposer.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const message = els.zoneInput.value.trim();
+      if (!message) return;
+
+      els.zoneSend.disabled = true;
+      els.zoneSendStatus.className = "send-status";
+      els.zoneSendStatus.textContent = "Sending through zone-board…";
+      try {
+        await publishZoneMessage(message);
+        els.zoneInput.value = "";
+        els.zoneSendStatus.textContent = "Sent to your channel. Waiting for finalization/cache sync…";
+        setTimeout(loadZoneMessages, 1200);
+      } catch (err) {
+        els.zoneSendStatus.className = "send-status error";
+        els.zoneSendStatus.textContent = String(err);
+      } finally {
+        els.zoneSend.disabled = false;
+        els.zoneInput.focus();
+      }
+    });
+
+    els.subscribeCancel.addEventListener("click", closeSubscribeModal);
+    els.subscribeModal.addEventListener("click", (event) => {
+      if (event.target === els.subscribeModal) closeSubscribeModal();
+    });
+
+    els.subscribeForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const channel = els.subscribeInput.value.trim();
+      if (!channel) return;
+
+      els.subscribeSubmit.disabled = true;
+      els.subscribeStatus.className = "send-status";
+      els.subscribeStatus.textContent = "Subscribing through zone-board…";
+      try {
+        await subscribeZoneChannel(channel);
+        els.subscribeStatus.textContent = `Subscribed to ${channel}. Waiting for sync…`;
+        closeSubscribeModal();
+        setTimeout(loadZoneMessages, 1200);
+      } catch (err) {
+        els.subscribeStatus.className = "send-status error";
+        els.subscribeStatus.textContent = String(err);
+      } finally {
+        els.subscribeSubmit.disabled = false;
+      }
+    });
+
+    async function refreshPanels() {
+      await Promise.all([loadStatus(), loadLogs()]);
+    }
+
+    refreshPanels();
+    loadProposals();
+    loadZoneMessages();
+    setInterval(refreshPanels, PANEL_REFRESH_MS);
+    setInterval(loadProposals, PROPOSAL_REFRESH_MS);
+    setInterval(loadZoneMessages, ZONE_REFRESH_MS);
+  </script>
+</body>
+</html>
