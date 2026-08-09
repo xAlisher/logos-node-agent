@@ -14,7 +14,7 @@ say "════════ logos-node-agent · box assessment ═════
 OS=$(. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown}")
 ARCH=$(uname -m); GLIBC=$(getconf GNU_LIBC_VERSION 2>/dev/null | awk '{print $2}')
 FREE_GB=$(df -BG --output=avail "$HOME" 2>/dev/null | awk 'NR==2{gsub(/[^0-9]/,"");print}')
-MISS=""; for c in git curl jq tmux python3; do have "$c" || MISS="$MISS $c"; done
+MISS=""; for c in git curl jq tmux python3 gh; do have "$c" || MISS="$MISS $c"; done
 TS=$(have tailscale && (tailscale ip -4 2>/dev/null | head -1) || echo "NO"); CC=$(have claude && echo yes || echo no)
 say ""; say "BOX"
 say "  os=$OS  arch=$ARCH  glibc=${GLIBC:-?}  free=${FREE_GB:-?}G"

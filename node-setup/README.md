@@ -27,12 +27,12 @@ reusable by anyone's agent.
 
 **System packages** — the only step that needs **sudo**, done **once during box prep**:
 ```bash
-sudo apt update && sudo apt install -y git curl jq tmux python3
+sudo apt update && sudo apt install -y git curl jq tmux python3 gh
 ```
 - `curl`, `python3` are usually already on Ubuntu 24.04; **`jq` and `tmux` are the ones commonly missing**.
 - `jq` → verify/healthcheck JSON · `tmux` → keep the node/agent session alive without a login manager
   (sudo-free persistence; no `systemd --user` linger) · `python3` (stdlib only, no pip) → the dashboard ·
-  `git` → clone this kit + the dashboard.
+  `git`/`gh` → clone the repo + GitHub ops.
 - **After this, everything is sudo-free.** `install-node-tools.sh` drops `logoscore`/`lgpd`/`lgpm` into
   `~/logos-node/bin` (no sudo); the node, dashboard, and cleanup all run in userspace. The one thing that
   still needs sudo — **reboot-persistence** (`loginctl enable-linger`) — is deferred to end-of-workshops.

@@ -27,7 +27,7 @@ FREE_GB=$(df -BG --output=avail "$HOME" 2>/dev/null | awk 'NR==2{gsub(/[^0-9]/,"
 [ "${FREE_GB:-0}" -ge 64 ] || echo "  ⚠ only ${FREE_GB:-?}G free at \$HOME; docs want ≥ 64G"
 # system deps (installed once during box prep — the only sudo step): git curl jq tmux python3
 MISSING=""
-for c in git curl jq tmux python3; do command -v "$c" >/dev/null 2>&1 || MISSING="$MISSING $c"; done
+for c in git curl jq tmux python3 gh; do command -v "$c" >/dev/null 2>&1 || MISSING="$MISSING $c"; done
 if [ -n "$MISSING" ]; then
   echo "  ✗ missing deps:$MISSING"
   echo "    install once (needs sudo, box-prep):  sudo apt update && sudo apt install -y$MISSING"
