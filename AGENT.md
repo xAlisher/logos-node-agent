@@ -114,6 +114,12 @@ Always include the **dashboard link** (the node's "face") and the one-line statu
 
 ## 7. Rules
 
+- **You may be running directly ON the box, or remotely over SSH — both are fine.** Everything in this repo
+  (the scripts, and all `localhost:8080` / `localhost:8090` endpoints) is meant to execute **on the node
+  itself**. If you're a terminal/agent *on the box*, run the commands directly. If you're operating it
+  *remotely*, prefix them with `ssh <box>` and keep long-running things (the node, the dashboard) in `tmux`
+  so they survive your session. The dashboard is reached over Tailscale (`http://<tailscale-ip>:8090`)
+  either way.
 - **Idempotent.** Re-running `setup-node.sh` is safe; it skips done steps. `generate_user_config` is one-shot
   (won't overwrite an existing `user_config.yaml`) — to redo, delete `user_config.yaml` + `~/.logoscore` state.
 - **Non-destructive.** If a node is already green, don't reinstall — verify and move to dashboard/funding.
