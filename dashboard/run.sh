@@ -4,17 +4,24 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 RUNBOOK_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
-HOST="${HOST:-127.0.0.1}"
+# Defaults are aligned to what node-setup actually produces (~/logos-node) — override any via env.
+NS_ENV="$RUNBOOK_ROOT/node-setup/config/node.env"
+[ -f "$NS_ENV" ] && source "$NS_ENV" 2>/dev/null || true
+NODE_HOME="${NODE_HOME:-$HOME/logos-node}"
+
+# HOST=0.0.0.0 so the dashboard is reachable from your phone over the tailnet (loopback would hide it).
+# The box is behind NAT + the tailnet; the dashboard is read-only. Bind to the Tailscale IP if you prefer.
+HOST="${HOST:-0.0.0.0}"
 PORT="${PORT:-8090}"
-NODE_API="${NODE_API:-http://127.0.0.1:8080}"
-NODE_LOG_DIR="${NODE_LOG_DIR:-$HOME/logos-v2/standalone-021}"
-NODE_UNIT="${NODE_UNIT:-logos-node-v2}"
-export NODE_BINARY="${NODE_BINARY:-$HOME/logos-v2/standalone-021/logos-blockchain-node}"
+NODE_API="${NODE_API:-${API:-http://127.0.0.1:8080}}"
+NODE_LOG_DIR="${NODE_LOG_DIR:-$NODE_HOME}"
+NODE_CONFIG="${NODE_CONFIG:-$NODE_HOME/user_config.yaml}"
+NODE_UNIT="${NODE_UNIT:-}"                       # the logoscore path has no systemd unit
+export NODE_BINARY="${NODE_BINARY:-}"            # nor a raw binary
 ZONE_BOARD_DIR="${ZONE_BOARD_DIR:-$RUNBOOK_ROOT/state/zone-board-v0.2.2}"
 ZONE_BOARD_TMUX_SESSION="${ZONE_BOARD_TMUX_SESSION:-zone-board}"
 ZONE_CHANNEL="${ZONE_CHANNEL:-local}"
 DASHBOARD_LIVE_CHANNEL_CACHE="${DASHBOARD_LIVE_CHANNEL_CACHE:-$ZONE_BOARD_DIR/dashboard-live-channels.json}"
-NODE_CONFIG="${NODE_CONFIG:-$HOME/logos-v2/standalone-021/user_config.yaml}"
 WALLET_PUBLIC_KEY="${WALLET_PUBLIC_KEY:-}"
 
 if [[ -z "$WALLET_PUBLIC_KEY" && -f "$NODE_CONFIG" ]]; then

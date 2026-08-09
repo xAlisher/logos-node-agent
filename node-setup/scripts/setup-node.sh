@@ -56,6 +56,7 @@ log "Download + install blockchain_module ${BLOCKCHAIN_MODULE_VERSION}"
 LGX="blockchain_module-${BLOCKCHAIN_MODULE_VERSION}.lgx"
 [ -f "$LGX" ] || lgpd download blockchain_module --version "${BLOCKCHAIN_MODULE_VERSION}" --output ./
 ok "have $LGX"
+echo "  (a 'Package is unsigned' warning below is normal for testnet modules — safe to proceed)"
 lgpm --modules-dir ./modules install --file "$LGX"
 ok "installed into ./modules"
 
@@ -72,7 +73,9 @@ log "Generate user_config.yaml (with current bootstrap peers)"
 if [ -f user_config.yaml ]; then
   ok "user_config.yaml already exists (leaving it — generate is one-shot; delete to redo)"
 else
-  logoscore call blockchain_module generate_user_config "{\"initial_peers\": ${BOOTSTRAP_PEERS}}"
+  PEERS="$BOOTSTRAP_PEERS"
+  [ -n "${EXTRA_PEERS:-}" ] && PEERS="${BOOTSTRAP_PEERS%]}${EXTRA_PEERS}]"   # splice diverse peers if set
+  logoscore call blockchain_module generate_user_config "{\"initial_peers\": ${PEERS}}"
   [ -f user_config.yaml ] || die "generate_user_config did not produce user_config.yaml"
   ok "wrote user_config.yaml"
 fi

@@ -4,7 +4,16 @@ You are an AI agent (e.g. Claude Code) that has just been pointed at this repo o
 **get this box to a green Logos blockchain node (0.2.1), picking up from wherever it already is.** Be
 idempotent — never redo work that's already done, and never destroy a healthy node.
 
-## 0. Say hello first
+> ## ⛔ TWO GATES — you must not skip these, even if the goal seems obvious
+> 1. **Greet the operator first** (§0) — your very first message, before running anything.
+> 2. **Present your plan and get an explicit "go"** (§3) — before any command that installs, generates,
+>    starts, or removes anything. `scripts/assess.sh` is read-only and may run before the go.
+>
+> A human is watching and wants to understand what's happening. Skipping straight to execution — even when
+> you're confident, even when questions are pre-answered — is a **failure of the task**, not efficiency.
+> Do the greeting and the plan as visible chat messages, then proceed.
+
+## 0. Say hello first  ·  (GATE 1 — always your first message)
 
 Open with a warm, plain-language greeting so the operator knows who you are and what's about to happen —
 **before** running anything. Adapt this, don't read it robotically:

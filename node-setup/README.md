@@ -44,24 +44,25 @@ sudo apt update && sudo apt install -y git curl jq tmux python3
 
 ## The flow (each step = a script; bump only `config/node.env` per release)
 
-| # | Do | Script | sudo? |
+| # | Do | Command *(run from the repo root)* | sudo? |
 |---|----|--------|-------|
-| 0–3 | preflight → install tools → install+load `blockchain_module` → configure (peers) → start | `scripts/setup-node.sh` | no |
-| — | verify green (height climbing) | `scripts/healthcheck.sh` | no |
-| 4 | fund it (once Online) | manual: faucet, see below | no |
-| 5 | make it always-on (systemd user service + linger) | `scripts/install-systemd.sh` *(todo)* | **yes** (linger) |
-| 6 | dashboard on `:8090`, exposed over Tailscale | `scripts/install-dashboard.sh` *(todo)* | **yes** (`tailscale serve`) |
-| — | reset box to clean Ubuntu | `scripts/uninstall.sh` *(todo)* | **yes** (linger, apt) |
+| 0–3 | preflight → install tools → install+load `blockchain_module` → configure (peers) → start | `node-setup/scripts/setup-node.sh` | no |
+| — | verify green (height climbing) | `node-setup/scripts/healthcheck.sh` | no |
+| 4 | dashboard on `:8090`, reached over the tailnet (no `tailscale serve`) | `dashboard/run.sh` | no |
+| 5 | fund it (once Online) | manual: faucet, see below | no |
+| — | reset box to blank state (node removed, keys backed up) | `node-setup/scripts/uninstall.sh` | no |
+| 6 | *(optional)* reboot-persistence — node survives a power loss | manual: `sudo loginctl enable-linger $USER` + BIOS "power-on after AC loss" | **yes** |
 
-The **core node path (0–3 + verify) needs no sudo** — it installs into `~/logos-node/bin` and runs in
-userspace. Only the *sovereign layer* (always-on + public dashboard) needs sudo.
+The **whole path is sudo-free** — tools install into `~/logos-node/bin`, node/dashboard/cleanup run in
+userspace. The *only* sudo need is the optional reboot-persistence (step 6); deferred to end-of-workshops.
 
 ## Run it
 
 ```bash
-git clone <this-repo> ~/logos-node-021 && cd ~/logos-node-021
-scripts/setup-node.sh          # → node bootstrapping (run 1 syncs from scratch, ~1h to Online)
-scripts/healthcheck.sh         # → GREEN when height climbs
+git clone https://github.com/xAlisher/logos-node-agent.git && cd logos-node-agent
+node-setup/scripts/setup-node.sh      # → node bootstrapping (run 1 syncs from scratch, ~1h to Online)
+node-setup/scripts/healthcheck.sh     # → GREEN when peers > 0 and height climbs
+dashboard/run.sh                      # → dashboard on :8090, open it from your phone over the tailnet
 ```
 
 ## Fund it (once Online)
@@ -79,7 +80,8 @@ for the demo, show *funded + Online + height tracking tip*).
 - **Empty IBD peers → "syncs nothing"** (GUI bug #3153 / module#54): we pass peers to `generate_user_config`,
   so both config blocks get populated. The CLI path is immune.
 - **Single-host bootstrap abort** (#3166): the four release peers are all one host (`65.109.51.37`). If it's
-  unreachable the node *hard-aborts*. → append a diverse peer (Sneg, over Tailscale) in `config/node.env`.
+  unreachable the node *hard-aborts*. **Not mitigated by default** — you *should* add a diverse peer you
+  control via `EXTRA_PEERS` in `config/node.env` (we don't ship one; a good peer is operator-specific).
 - **Re-genesis every release**: 0.2.0→0.2.1 wiped balances. Never restore a pre-genesis snapshot; run 1 syncs
   from scratch → we snapshot *that* synced state for runs 2–3.
 - **Restart during bootstrap loses progress** — don't restart a bootstrapping node; let it reach Online.
