@@ -13,13 +13,16 @@ reusable by anyone's agent.
 **Hardware / OS**
 - Ubuntu 24.04 LTS, **x86_64** · **glibc ≥ 2.39** (24.04 ships 2.39) · **≥ 64 GB** free disk · ~**8 GB** RAM.
 
-**BIOS — auto-restart after power loss** (one-time, needs physical/BIOS access at box-prep):
-- In BIOS/UEFI set **"Restore on AC Power Loss"** (a.k.a. *AC Power Recovery* / *After Power Failure* /
-  *Restore Power State*) to **Power On** (or **Last State**), so the machine reboots itself after an outage.
-- Pair it with **reboot-persistence** (`sudo loginctl enable-linger $USER` — the deferred end-of-workshop
-  sudo step) so the node's user service auto-starts on that boot. BIOS-power-on **without** linger just
-  boots to a login prompt with the node stopped; linger **without** BIOS-power-on never boots after an
-  outage. You need **both** for a truly always-on sovereign node.
+**Reboot-persistence is automatic and sudo-free.** `setup-node.sh` installs a user **`@reboot` crontab**
+(`install-persistence.sh` → `start-on-boot.sh`) that restarts the node + dashboard on every boot — **no
+`systemd` linger, no sudo**. That covers OS reboots. (SSH logout is already covered: the node is a detached
+`logoscore` daemon, the dashboard runs in tmux.)
+
+**BIOS — auto-restart after power *outage*** (optional, one-time, needs physical/BIOS access):
+- To also survive a full power loss, set BIOS/UEFI **"Restore on AC Power Loss"** (a.k.a. *AC Power Recovery* /
+  *After Power Failure* / *Restore Power State*) to **Power On** (or **Last State**), so the machine powers
+  itself back on after an outage. On that boot, the `@reboot` cron above brings the node back automatically.
+  This is firmware, not sudo. BIOS-power-on = the physical layer; `@reboot` cron = the software layer.
 
 **Assumed already set up** (the box-prep phase — done once, before the sudo-free workshop):
 - **Tailscale** + **Tailscale SSH** (this is our access path *and* how phones reach the dashboard).
@@ -27,12 +30,13 @@ reusable by anyone's agent.
 
 **System packages** — the only step that needs **sudo**, done **once during box prep**:
 ```bash
-sudo apt update && sudo apt install -y git curl jq tmux python3 gh fuse3
+sudo apt update && sudo apt install -y git curl jq tmux python3 cron gh fuse3
 ```
-- `curl`, `python3` are usually already on Ubuntu 24.04; **`jq` and `tmux` are the ones commonly missing**.
-- `jq` → verify/healthcheck JSON · `tmux` → keep the node/agent session alive without a login manager
-  (sudo-free persistence; no `systemd --user` linger) · `python3` (stdlib only, no pip) → the dashboard ·
-  `git` → clone the repo (`gh` optional, for GitHub ops) · `fuse3` → the node tools are AppImages that mount via FUSE (setup auto-extracts if absent).
+- `curl`, `python3`, `cron` are usually already on Ubuntu 24.04; **`jq` and `tmux` are the ones commonly missing**.
+- `jq` → verify/healthcheck JSON · `tmux` → keep the dashboard alive without a login manager · `cron` →
+  sudo-free **reboot-persistence** (a user `@reboot` job restarts the node on boot — no `systemd --user`
+  linger) · `python3` (stdlib only, no pip) → the dashboard · `git` → clone the repo (`gh` optional, for
+  GitHub ops) · `fuse3` → the node tools are AppImages that mount via FUSE (setup auto-extracts if absent).
 - **After this, everything is sudo-free.** `install-node-tools.sh` drops `logoscore`/`lgpd`/`lgpm` into
   `~/logos-node/bin` (no sudo); the node, dashboard, and cleanup all run in userspace. The one thing that
   still needs sudo — **reboot-persistence** (`loginctl enable-linger`) — is deferred to end-of-workshops.
@@ -46,15 +50,18 @@ sudo apt update && sudo apt install -y git curl jq tmux python3 gh fuse3
 
 | # | Do | Command *(run from the repo root)* | sudo? |
 |---|----|--------|-------|
-| 0–3 | preflight → install tools → install+load `blockchain_module` → configure (peers) → start | `node-setup/scripts/setup-node.sh` | no |
+| 0–4 | preflight → install tools → install+load `blockchain_module` → configure (peers) → start → **install reboot-persistence** | `node-setup/scripts/setup-node.sh` | no |
 | — | verify green (height climbing) | `node-setup/scripts/healthcheck.sh` | no |
-| 4 | dashboard on `:8090`, reached over the tailnet (no `tailscale serve`) | `dashboard/run.sh` | no |
-| 5 | fund it (once Online) | manual: faucet, see below | no |
-| — | reset box to blank state (node removed, keys backed up) | `node-setup/scripts/uninstall.sh` | no |
-| 6 | *(optional)* reboot-persistence — node survives a power loss | manual: `sudo loginctl enable-linger $USER` + BIOS "power-on after AC loss" | **yes** |
+| 5 | dashboard on `:8090`, reached over the tailnet (no `tailscale serve`) | `dashboard/run.sh` | no |
+| 6 | fund it (once Online) | manual: faucet, see below | no |
+| — | reset box to blank state (node + cron removed, keys backed up) | `node-setup/scripts/uninstall.sh` | no |
+| 7 | *(optional)* survive a power **outage** too | BIOS "Restore on AC Power Loss → Power On" (firmware, one-time) | firmware |
 
-The **whole path is sudo-free** — tools install into `~/logos-node/bin`, node/dashboard/cleanup run in
-userspace. The *only* sudo need is the optional reboot-persistence (step 6); deferred to end-of-workshops.
+The **whole path is sudo-free** — tools install into `~/logos-node/bin`; node, dashboard, cleanup, **and
+reboot-persistence** all run in userspace. Reboot-persistence is installed **by default** as a user `@reboot`
+crontab (step 4 above; `PERSIST=0 node-setup/scripts/setup-node.sh` to skip) — **no `loginctl enable-linger`,
+no sudo**. The only sudo is box-prep `apt` (done once). Surviving a power *outage* is the one-time BIOS setting
+(firmware, not sudo).
 
 ## Run it
 
@@ -103,15 +110,15 @@ for the demo, show *funded + Online + height tracking tip*).
 ## Final checklist — the node is *done* when
 
 **Box prep (once, needs sudo / physical access)**
-- [ ] `git curl jq tmux python3` installed · `tailscale` up with Tailscale SSH · Claude Code logged in
-- [ ] BIOS **"Restore on AC Power Loss" → Power On** (auto-reboot after outage)
-- [ ] `sudo loginctl enable-linger $USER` (reboot-persistence; end-of-workshop) — pairs with the BIOS setting
+- [ ] `git curl jq tmux python3 cron` installed · `tailscale` up with Tailscale SSH · Claude Code logged in
+- [ ] *(optional, to survive a power outage)* BIOS **"Restore on AC Power Loss" → Power On**
 
 **Node (sudo-free)**
 - [ ] `blockchain_module 0.2.1` installed; `user_config.yaml` generated with the **current** bootstrap peers
       (refreshed from the target release's notes) + a diverse peer added
 - [ ] `scripts/healthcheck.sh` → **GREEN** — `n_peers > 0`, `height` climbing, `state: Online`
-- [ ] Node **survives SSH logout** (logoscore daemon / tmux `node021`)
+- [ ] Node **survives SSH logout** (detached `logoscore` daemon + dashboard in tmux `dashboard`)
+- [ ] Node **survives a reboot** — `@reboot` cron installed (`crontab -l | grep logos-node-agent`); sudo-free
 - [ ] Node **keys backed up off-box** (`user_config.yaml` + keystore)
 
 **Funding & consensus** (demo shows *funded + Online + tracking tip*; a won slot needs ~3.5 h)
@@ -124,4 +131,5 @@ for the demo, show *funded + Online + height tracking tip*).
 - [ ] Dashboard shows live state/height/peers/balance (0.2.1 nested-schema aware)
 
 **Resilience proof (optional but ideal for the sovereign story)**
-- [ ] Reboot the box → node + dashboard come back **on their own** (BIOS power-on + linger both set)
+- [ ] Reboot the box → node + dashboard come back **on their own** (`@reboot` cron; sudo-free)
+- [ ] Pull the plug → box powers back on + node returns (adds the one-time BIOS "power-on after AC loss")

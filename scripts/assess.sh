@@ -15,7 +15,8 @@ OS=$(. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown}")
 ARCH=$(uname -m); GLIBC=$(getconf GNU_LIBC_VERSION 2>/dev/null | awk '{print $2}')
 FREE_GB=$(df -BG --output=avail "$HOME" 2>/dev/null | awk 'NR==2{gsub(/[^0-9]/,"");print}')
 MISS=""; for c in git curl jq tmux python3; do have "$c" || MISS="$MISS $c"; done   # core (gating)
-REC="";  for c in gh; do have "$c" || REC="$REC $c"; done                          # recommended (non-gating)
+REC="";  for c in gh; do have "$c" || REC="$REC $c"; done                           # recommended (non-gating)
+have crontab || REC="$REC cron"                                                      # cron → sudo-free reboot-persistence
 ldconfig -p 2>/dev/null | grep -qE 'libfuse3\.so\.3|libfuse\.so\.2' || REC="$REC fuse3"  # AppImage tools mount via FUSE
 TS=$(have tailscale && (tailscale ip -4 2>/dev/null | head -1) || echo "NO"); CC=$(have claude && echo yes || echo no)
 say ""; say "BOX"
@@ -46,6 +47,11 @@ else
   [ "$TOOLS" = yes ] && [ "$CFG" = yes ] && NODE_STATE=installed-stopped
 fi
 
+# ── reboot-persistence (sudo-free @reboot cron) ──
+PERSIST=no
+have crontab && crontab -l 2>/dev/null | grep -Fq 'logos-node-agent @reboot' && PERSIST=yes
+say "  reboot-persistence=$PERSIST (sudo-free @reboot cron)"
+
 # ── dashboard ──
 DASH=$(curl -s --max-time 4 -o /dev/null -w '%{http_code}' "http://localhost:8090/" 2>/dev/null || echo 000)
 say ""; say "DASHBOARD"
@@ -68,6 +74,7 @@ elif [ "$NODE_STATE" = installed-stopped ]; then
 elif [ "$GREEN" = likely ]; then
   say "→ NODE IS UP & MESHED. Confirm green:   node-setup/scripts/healthcheck.sh"
   [ "$DASH" != 200 ] && say "  then bring up the dashboard:          dashboard/run.sh   (see dashboard/README.md)"
+  [ "$PERSIST" = no ] && say "  ⚠ make it survive reboots (sudo-free): node-setup/scripts/install-persistence.sh"
   say "  fund it if not yet:                   grep -A3 known_keys $NODE_HOME/user_config.yaml  →  faucet"
 else
   say "→ NODE RUNNING but not clearly healthy. Diagnose:   node-setup/scripts/healthcheck.sh"

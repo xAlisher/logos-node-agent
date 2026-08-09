@@ -90,6 +90,15 @@ log "Start the node"
 logoscore call blockchain_module start user_config.yaml ""
 ok "start issued — node is bootstrapping (syncs from scratch on run 1; ~1h to Online)"
 
+# ── Step 4: reboot-persistence (sudo-free, ON by default; PERSIST=0 to skip) ──
+# A node should survive a reboot. We do it WITHOUT sudo via a user @reboot crontab (no systemd linger).
+log "Install reboot-persistence (sudo-free @reboot cron — node survives a reboot)"
+if [ "${PERSIST:-1}" = "1" ]; then
+  "$HERE/scripts/install-persistence.sh" || echo "  ⚠ persistence step failed (non-fatal) — the node is still running"
+else
+  echo "  (PERSIST=0 → skipped; the node runs only until the box reboots)"
+fi
+
 echo
 echo "Next: watch it go green →  scripts/healthcheck.sh   (green = n_peers>0 AND height climbing → mode Online)"
 echo "Fund it once Online →      grep -A3 known_keys $NODE_HOME/user_config.yaml   then  $FAUCET_URL"

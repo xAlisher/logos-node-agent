@@ -28,11 +28,19 @@ if [ "$YES" != "--yes" ]; then
 fi
 
 echo
+echo "▶ Removing reboot-persistence (crontab @reboot)…"
+if command -v crontab >/dev/null 2>&1 && crontab -l 2>/dev/null | grep -Fq 'logos-node-agent @reboot'; then
+  crontab -l 2>/dev/null | grep -v 'logos-node-agent @reboot' | crontab - && echo "  ✓ removed @reboot cron line"
+else
+  echo "  (no @reboot persistence line found)"
+fi
+
 echo "▶ Stopping the node…"
 command -v logoscore >/dev/null 2>&1 && logoscore call blockchain_module stop >/dev/null 2>&1 || true
 pkill -x logoscore 2>/dev/null || true
 pkill -f 'logos_host.elf' 2>/dev/null || true
 tmux kill-session -t node021 2>/dev/null || true
+tmux kill-session -t dashboard 2>/dev/null || true
 sleep 1
 
 echo "▶ Removing…"

@@ -44,8 +44,13 @@ Before running node-setup, confirm with the operator (assess can't know these):
 - **Sync from a snapshot or from scratch?** From scratch is ~1h but always correct. A snapshot is fast but
   must be **post-genesis for the target release** (the testnet re-genesises each release — a stale snapshot =
   wrong/dead chain). If unsure, sync from scratch.
-- **Always-on + dashboard?** If yes, you'll also run the dashboard and (for reboot-persistence, needs sudo)
-  the linger + BIOS steps — otherwise the node runs while the box is up.
+- **Dashboard?** Default **yes** — a phone-viewable dashboard on `:8090` over the tailnet.
+
+**Don't ask whether the node should survive a reboot — it should, always.** `setup-node.sh` installs
+reboot-persistence **by default and sudo-free** (a user `@reboot` crontab that restarts the node + dashboard —
+no `systemd` linger, no sudo). The node already survives SSH logout (detached daemon + tmux). The *only*
+optional extra is surviving a full power **outage**, which needs a one-time BIOS "Restore on AC Power Loss →
+Power On" setting (firmware, physical access) — mention it, but it's not a blocker.
 
 Don't ask what `assess.sh` already answered. Ask in plain language; wait for answers before destructive steps.
 
@@ -95,7 +100,9 @@ the assess output). Example:
 > testnet peers, started it syncing, and brought up a dashboard.
 >
 > **Node status:** `Bootstrapping`, height 12,180 and climbing, **48 peers** — GREEN. It'll reach `Online`
-> after the ~1h bootstrap window; it keeps running on its own (tmux, no login needed).
+> after the ~1h bootstrap window. It keeps running on its own (detached daemon + tmux, no login needed) **and
+> comes back by itself after a reboot** (I installed a sudo-free `@reboot` cron). To also survive a full power
+> outage, set the BIOS "Restore on AC Power Loss → Power On" once.
 >
 > **What's normal to see:** the node's **Blend** service (its built-in privacy / mix-network layer) starts
 > automatically and logs a "waiting for the chain to become Online" message the whole time it's
@@ -123,8 +130,10 @@ Always include the **dashboard link** (the node's "face") and the one-line statu
 - **Idempotent.** Re-running `setup-node.sh` is safe; it skips done steps. `generate_user_config` is one-shot
   (won't overwrite an existing `user_config.yaml`) — to redo, delete `user_config.yaml` + `~/.logoscore` state.
 - **Non-destructive.** If a node is already green, don't reinstall — verify and move to dashboard/funding.
-- **Sudo-free by default.** The node, dashboard, and cleanup all run in userspace. The *only* sudo needs are
-  box-prep (`apt`) and reboot-persistence (`loginctl enable-linger`) — both optional for a live session.
+- **Sudo-free by default.** The node, dashboard, cleanup, **and reboot-persistence** all run in userspace
+  (reboot-persistence is a user `@reboot` cron, not `loginctl enable-linger`). The *only* sudo is box-prep
+  (`apt`, done once before the workshop). Surviving a power **outage** needs a one-time BIOS setting (firmware,
+  not sudo).
 - **Back up keys before any wipe** (`node-setup/scripts/uninstall.sh` reminds you): `user_config.yaml` +
   keystore hold the operator's wallet.
 - **When done**, report against `node-setup/README.md`'s **Final checklist**.
@@ -133,7 +142,8 @@ Always include the **dashboard link** (the node's "face") and the one-line statu
 
 - `scripts/assess.sh` — state probe (run first)
 - `node-setup/` — the node: `README.md` (runbook), `config/node.env` (bump per release), `scripts/`
-  (`setup-node.sh`, `healthcheck.sh`, `uninstall.sh`)
+  (`setup-node.sh`, `healthcheck.sh`, `install-persistence.sh` + `start-on-boot.sh` (sudo-free reboot
+  survival, installed by default), `uninstall.sh`)
 - `dashboard/` — local Python dashboard on `:8090`, reached over the tailnet (0.2.1-schema-aware)
 - `box-setup/` — optional fresh-box prep (Ubuntu / deps / Tailscale / Claude Code), reference docs
 - `skills/` — recovery + pitfall playbooks (crash-loop, circuits/wallet, proposals, state-copy)
