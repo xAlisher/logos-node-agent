@@ -111,9 +111,10 @@ the assess output). Example:
 > **📊 Watch it from your phone:** **http://100.x.x.x:8090** (over Tailscale) — live state, height, peers,
 > and wallet balance. Or from the box: `curl http://localhost:8080/cryptarchia/info`.
 >
-> **Your next step:** fund it — grep your key with `grep -A3 known_keys ~/logos-node/user_config.yaml`, paste
-> it into the faucet (https://testnet.blockchain.logos.co/web/faucet/). It auto-stakes; ~3.5 h to
-> consensus-eligible.
+> **Funding:** I can fund it for you now with one command — `node-setup/scripts/fund-node.sh` (it reads the
+> wallet's **public** key locally and asks the faucet via curl; your private key never leaves the box). It
+> auto-stakes; ~3.5 h to consensus-eligible. *(Manual fallback: `grep -A3 known_keys
+> ~/logos-node/user_config.yaml` → paste into https://testnet.blockchain.logos.co/web/faucet/.)*
 >
 > Anything you'd like me to change or explain?
 
@@ -142,8 +143,8 @@ Always include the **dashboard link** (the node's "face") and the one-line statu
 
 - `scripts/assess.sh` — state probe (run first)
 - `node-setup/` — the node: `README.md` (runbook), `config/node.env` (bump per release), `scripts/`
-  (`setup-node.sh`, `healthcheck.sh`, `install-persistence.sh` + `start-on-boot.sh` (sudo-free reboot
-  survival, installed by default), `uninstall.sh`)
+  (`setup-node.sh`, `healthcheck.sh`, `fund-node.sh` (curl the faucet — no web form),
+  `install-persistence.sh` + `start-on-boot.sh` (sudo-free reboot survival, installed by default), `uninstall.sh`)
 - `dashboard/` — local Python dashboard on `:8090`, reached over the tailnet (0.2.1-schema-aware)
 - `box-setup/` — optional fresh-box prep (Ubuntu / deps / Tailscale / Claude Code), reference docs
 - `skills/` — recovery + pitfall playbooks (crash-loop, circuits/wallet, proposals, state-copy)

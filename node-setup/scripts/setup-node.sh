@@ -99,6 +99,13 @@ else
   echo "  (PERSIST=0 → skipped; the node runs only until the box reboots)"
 fi
 
+# ── Step 5: (optional) auto-fund from the faucet via curl — AUTOFUND=1 to enable ──
+if [ "${AUTOFUND:-0}" = "1" ]; then
+  log "Auto-funding from the faucet (AUTOFUND=1)"
+  "$HERE/scripts/fund-node.sh" || echo "  ⚠ auto-fund failed (non-fatal) — run scripts/fund-node.sh later"
+fi
+
 echo
 echo "Next: watch it go green →  scripts/healthcheck.sh   (green = n_peers>0 AND height climbing → mode Online)"
-echo "Fund it once Online →      grep -A3 known_keys $NODE_HOME/user_config.yaml   then  $FAUCET_URL"
+echo "Fund it (curl, no web form) →  scripts/fund-node.sh   (or run setup with AUTOFUND=1 to fund automatically)"
+echo "   manual fallback: grep -A3 known_keys $NODE_HOME/user_config.yaml   then  $FAUCET_URL"

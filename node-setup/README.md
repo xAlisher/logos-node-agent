@@ -53,7 +53,7 @@ sudo apt update && sudo apt install -y git curl jq tmux python3 cron gh fuse3
 | 0–4 | preflight → install tools → install+load `blockchain_module` → configure (peers) → start → **install reboot-persistence** | `node-setup/scripts/setup-node.sh` | no |
 | — | verify green (height climbing) | `node-setup/scripts/healthcheck.sh` | no |
 | 5 | dashboard on `:8090`, reached over the tailnet (no `tailscale serve`) | `dashboard/run.sh` | no |
-| 6 | fund it (once Online) | manual: faucet, see below | no |
+| 6 | fund it (curl the faucet, no web form) | `node-setup/scripts/fund-node.sh` *(or `AUTOFUND=1`)* | no |
 | — | reset box to blank state (node + cron removed, keys backed up) | `node-setup/scripts/uninstall.sh` | no |
 | 7 | *(optional)* survive a power **outage** too | BIOS "Restore on AC Power Loss → Power On" (firmware, one-time) | firmware |
 
@@ -72,12 +72,20 @@ node-setup/scripts/healthcheck.sh     # → GREEN when peers > 0 and height clim
 dashboard/run.sh                      # → dashboard on :8090, open it from your phone over the tailnet
 ```
 
-## Fund it (once Online)
+## Fund it (curl the faucet — no web form)
 
 ```bash
-grep -A3 known_keys ~/logos-node/user_config.yaml     # copy any key id
+node-setup/scripts/fund-node.sh          # reads funding_pk from user_config.yaml, POSTs it to the faucet,
+                                          # then polls the wallet balance until the funds land
+```
+It sends only the wallet's **public** key (the faucet's `POST <FAUCET_BACKEND>/<pubkey>`); the private key
+never leaves the box. Run `setup-node.sh` with **`AUTOFUND=1`** to fund automatically at the end of setup.
+
+Manual fallback (web form):
+```bash
+grep -A3 known_keys ~/logos-node/user_config.yaml     # copy the key id
 # → paste into "Destination Public Key (Hex)" at https://testnet.blockchain.logos.co/web/faucet/
-curl -s http://localhost:8080/wallet/<key>/balance | jq .   # ~1–2 min later
+curl -s http://localhost:8080/wallet/<key>/balance    # 200 with a balance once it lands (404 until then)
 ```
 Tokens auto-stake; the node becomes consensus-eligible ~**3.5 h** after funding (can't be waited out live —
 for the demo, show *funded + Online + height tracking tip*).
