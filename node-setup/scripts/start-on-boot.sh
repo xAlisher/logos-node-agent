@@ -42,9 +42,14 @@ else
   tmux new-session -d -s node "cd $NODE_HOME && APPIMAGE_EXTRACT_AND_RUN=1 PATH=$NODE_HOME/bin:\$PATH logoscore -m ./modules -D >>$NODE_HOME/logoscore.out 2>&1"
   sleep 6
   logoscore load-module blockchain_module >>"$LOG" 2>&1 || true
-  logoscore call blockchain_module start user_config.yaml "" >>"$LOG" 2>&1 \
-    || log "warn: start call returned nonzero (may already be starting)"
-  log "node start issued (it will re-bootstrap; ~1h to Online)"
+  # On a reboot the module auto-resumes from saved chain state, so the API comes up on its own; only issue
+  # `start` if it hasn't (a fresh/empty state) — avoids a harmless but scary METHOD_FAILED in the boot log.
+  if curl -s --max-time 5 "$API/cryptarchia/info" >/dev/null 2>&1; then
+    log "module resumed from saved state — node API already up"
+  else
+    logoscore call blockchain_module start user_config.yaml "" >>"$LOG" 2>&1 || log "warn: start call returned nonzero"
+    log "node start issued (re-bootstrapping; ~1h to Online)"
+  fi
 fi
 
 # 2. Dashboard: (re)start in its tmux session if it isn't already running.
