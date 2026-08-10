@@ -42,13 +42,19 @@ else
   tmux new-session -d -s node "cd $NODE_HOME && APPIMAGE_EXTRACT_AND_RUN=1 PATH=$NODE_HOME/bin:\$PATH logoscore -m ./modules -D >>$NODE_HOME/logoscore.out 2>&1"
   sleep 6
   logoscore load-module blockchain_module >>"$LOG" 2>&1 || true
-  # On a reboot the module auto-resumes from saved chain state, so the API comes up on its own; only issue
-  # `start` if it hasn't (a fresh/empty state) — avoids a harmless but scary METHOD_FAILED in the boot log.
-  if curl -s --max-time 5 "$API/cryptarchia/info" >/dev/null 2>&1; then
-    log "module resumed from saved state — node API already up"
+  # On a reboot the module auto-resumes from saved chain state, but the API can take ~20-30s to bind. Poll
+  # before deciding: if it comes up, it resumed (no `start` needed) — avoids a harmless but scary
+  # METHOD_FAILED in the boot log. Only call `start` if the API never appears (a fresh/empty state).
+  resumed=""
+  for _ in $(seq 1 12); do
+    curl -s --max-time 4 "$API/cryptarchia/info" >/dev/null 2>&1 && { resumed=1; break; }
+    sleep 3
+  done
+  if [ -n "$resumed" ]; then
+    log "module resumed from saved chain state — node API up"
   else
     logoscore call blockchain_module start user_config.yaml "" >>"$LOG" 2>&1 || log "warn: start call returned nonzero"
-    log "node start issued (re-bootstrapping; ~1h to Online)"
+    log "node start issued (fresh state — bootstrapping)"
   fi
 fi
 
