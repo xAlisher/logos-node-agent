@@ -37,8 +37,9 @@ fi
 
 echo "▶ Stopping the node…"
 command -v logoscore >/dev/null 2>&1 && logoscore call blockchain_module stop >/dev/null 2>&1 || true
-pkill -x logoscore 2>/dev/null || true
+pkill -f logoscore 2>/dev/null || true    # -f so it matches the AppImage's .logoscore.elf, not just "logoscore"
 pkill -f 'logos_host.elf' 2>/dev/null || true
+tmux kill-session -t node 2>/dev/null || true
 tmux kill-session -t node021 2>/dev/null || true
 tmux kill-session -t dashboard 2>/dev/null || true
 sleep 1

@@ -28,16 +28,19 @@ for _ in $(seq 1 30); do
 done
 
 cd "$NODE_HOME" || { log "cannot cd $NODE_HOME"; exit 1; }
-# Same FUSE fallback as setup-node: extract instead of mount if no FUSE lib.
-ldconfig -p 2>/dev/null | grep -qE 'libfuse3\.so\.3|libfuse\.so\.2' || export APPIMAGE_EXTRACT_AND_RUN=1
+# ALWAYS extract-and-run: a FUSE-mounted AppImage's mount is torn down when the launching shell exits
+# (cron @reboot spawns a shell that exits), which hangs the daemon. Extracting drops the mount dependency.
+export APPIMAGE_EXTRACT_AND_RUN=1
 
-# 1. Node: start the logoscore daemon + (re)start the module, unless the API already answers.
+# 1. Node: start the logoscore daemon in a persistent tmux session (survives this cron shell exiting),
+#    then (re)start the module — unless the API already answers.
 if curl -s --max-time 5 "$API/cryptarchia/info" >/dev/null 2>&1; then
   log "node API already up on $API — leaving it"
 else
-  log "starting logoscore daemon"
-  ( logoscore -m ./modules -D >>"$NODE_HOME/logoscore.out" 2>&1 & )
-  sleep 5
+  log "starting logoscore daemon in tmux 'node'"
+  tmux kill-session -t node 2>/dev/null || true
+  tmux new-session -d -s node "cd $NODE_HOME && APPIMAGE_EXTRACT_AND_RUN=1 PATH=$NODE_HOME/bin:\$PATH logoscore -m ./modules -D >>$NODE_HOME/logoscore.out 2>&1"
+  sleep 6
   logoscore load-module blockchain_module >>"$LOG" 2>&1 || true
   logoscore call blockchain_module start user_config.yaml "" >>"$LOG" 2>&1 \
     || log "warn: start call returned nonzero (may already be starting)"

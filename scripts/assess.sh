@@ -69,8 +69,8 @@ elif [ "$NODE_STATE" = absent ]; then
   say "→ BOX READY, NO NODE.  Run node-setup:   node-setup/scripts/setup-node.sh"
   say "  then verify:                          node-setup/scripts/healthcheck.sh"
 elif [ "$NODE_STATE" = installed-stopped ]; then
-  say "→ NODE INSTALLED BUT STOPPED. Re-start it:   cd $NODE_HOME && logoscore -m ./modules -D & ; logoscore call blockchain_module start user_config.yaml \"\""
-  say "  (do NOT re-run generate_user_config — it's one-shot. See skills/logos-node-recovery.md)"
+  say "→ NODE INSTALLED BUT STOPPED. Re-start it:   node-setup/scripts/start-on-boot.sh"
+  say "  (launches the daemon in a persistent tmux 'node' with extract-and-run; do NOT re-run generate_user_config — one-shot. See skills/logos-node-recovery.md)"
 elif [ "$GREEN" = likely ]; then
   say "→ NODE IS UP & MESHED. Confirm green:   node-setup/scripts/healthcheck.sh"
   [ "$DASH" != 200 ] && say "  then bring up the dashboard:          dashboard/run.sh   (see dashboard/README.md)"

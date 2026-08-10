@@ -36,12 +36,11 @@ if [ -n "$MISSING" ]; then
   echo "  ⚠ continuing, but jq/tmux/python3 are needed later (verify / persistence / dashboard)"
 fi
 command -v tailscale >/dev/null 2>&1 || echo "  ⚠ tailscale not found — needed for SSH access + dashboard reachability"
-# The node tools (logoscore/lgpd/lgpm) are AppImages: they mount via FUSE. On a box without a FUSE lib
-# (fresh Ubuntu 24.04 can lack it), fall back to extract-and-run so they still work — no sudo needed.
-if ! ldconfig -p 2>/dev/null | grep -qE 'libfuse3\.so\.3|libfuse\.so\.2'; then
-  export APPIMAGE_EXTRACT_AND_RUN=1
-  echo "  ⚠ no FUSE lib → APPIMAGE_EXTRACT_AND_RUN=1 (tools extract instead of mount; install fuse3 for faster runs)"
-fi
+# The node tools (logoscore/lgpd/lgpm) are AppImages. ALWAYS run them extract-and-run, not FUSE-mounted:
+# a mounted AppImage's FUSE mount is torn down when the launching shell/session exits, which HANGS a
+# backgrounded logoscore daemon (frozen — no API, no peers, no log progress). Extracting drops the mount.
+export APPIMAGE_EXTRACT_AND_RUN=1
+ldconfig -p 2>/dev/null | grep -qE 'libfuse3\.so\.3|libfuse\.so\.2' || echo "  ⚠ no FUSE lib (fine — using extract-and-run)"
 ok "x86_64 · glibc ${GLIBC:-?} · ${FREE_GB:-?}G free · deps:${MISSING:- all present}"
 
 mkdir -p "$NODE_HOME"; cd "$NODE_HOME"
@@ -66,10 +65,16 @@ echo "  (a 'Package is unsigned' warning below is normal for testnet modules —
 lgpm --modules-dir ./modules install --file "$LGX"
 ok "installed into ./modules"
 
-log "Start logoscore daemon + load module"
-if ! curl -s "$API/cryptarchia/info" >/dev/null 2>&1 && ! pgrep -x logoscore >/dev/null; then
-  ( logoscore -m ./modules -D >"$NODE_HOME/logoscore.out" 2>&1 & )   # daemon
-  sleep 3
+log "Start logoscore daemon (persistent tmux 'node') + load module"
+# Run the daemon inside a dedicated tmux session so it survives whoever launched setup — a cold agent that
+# ends its turn, an SSH session that closes, cron @reboot. A bare `logoscore -D &` dies with its parent
+# (and on a FUSE box its AppImage mount vanishes, hanging it). The tmux session is the node's supervisor.
+if curl -s "$API/cryptarchia/info" >/dev/null 2>&1; then
+  ok "node API already up — leaving the running daemon"
+else
+  tmux kill-session -t node 2>/dev/null || true
+  tmux new-session -d -s node "cd $NODE_HOME && APPIMAGE_EXTRACT_AND_RUN=1 PATH=$NODE_HOME/bin:\$PATH logoscore -m ./modules -D >$NODE_HOME/logoscore.out 2>&1"
+  sleep 6
 fi
 logoscore load-module blockchain_module || true    # idempotent: errors if already loaded
 ok "blockchain_module loaded"
