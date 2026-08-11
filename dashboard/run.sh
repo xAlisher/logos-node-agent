@@ -9,9 +9,14 @@ NS_ENV="$RUNBOOK_ROOT/node-setup/config/node.env"
 [ -f "$NS_ENV" ] && source "$NS_ENV" 2>/dev/null || true
 NODE_HOME="${NODE_HOME:-$HOME/logos-node}"
 
-# HOST=0.0.0.0 so the dashboard is reachable from your phone over the tailnet (loopback would hide it).
-# The box is behind NAT + the tailnet; the dashboard is read-only. Bind to the Tailscale IP if you prefer.
-HOST="${HOST:-0.0.0.0}"
+# Bind to THIS box's Tailscale IP by default: reachable from your phone over the tailnet, but NOT exposed
+# on a public NIC. Falls back to loopback if Tailscale isn't up. The dashboard is unauthenticated and
+# serves node logs, so binding all interfaces must be a deliberate choice: set HOST=0.0.0.0 explicitly
+# (only on a trusted/NAT'd network).
+if [ -z "${HOST:-}" ]; then
+  HOST="$(tailscale ip -4 2>/dev/null | head -1 || true)"
+  HOST="${HOST:-127.0.0.1}"
+fi
 PORT="${PORT:-8090}"
 NODE_API="${NODE_API:-${API:-http://127.0.0.1:8080}}"
 NODE_LOG_DIR="${NODE_LOG_DIR:-$NODE_HOME}"

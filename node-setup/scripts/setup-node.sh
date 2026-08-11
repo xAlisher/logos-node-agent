@@ -51,20 +51,30 @@ log "Install core tools (logoscore, lgpd, lgpm ${CORE_TOOLS_TAG})"
 if command -v logoscore >/dev/null && command -v lgpd >/dev/null && command -v lgpm >/dev/null; then
   ok "core tools already on PATH"
 else
-  curl -fsSL https://raw.githubusercontent.com/logos-co/logos-docs/main/resources/scripts/install-node-tools.sh | sh
+  # Pinned to a reviewed commit of the upstream installer (NOT mutable `main`) — bump deliberately.
+  INSTALLER_SHA="d32a94a7f5bcdf748c94dafeb98484a24d412565"
+  curl -fsSL "https://raw.githubusercontent.com/logos-co/logos-docs/${INSTALLER_SHA}/resources/scripts/install-node-tools.sh" | sh
   ok "installed into $NODE_HOME/bin"
 fi
 command -v logoscore >/dev/null || die "logoscore not on PATH after install"
 
-# ── Step 2: provision the blockchain module (skip download+install if already present) ──
+# ── Step 2: provision the blockchain module ──
+# Skip download+install ONLY when the cached module's version matches the target — otherwise a box
+# pre-warmed against an older release would silently run the stale module after a version bump.
 log "Provision blockchain_module ${BLOCKCHAIN_MODULE_VERSION}"
-if [ -d modules/blockchain_module ]; then
-  ok "blockchain_module already in ./modules (cached/pre-warmed) — skipping download + install"
+INSTALLED_VER=""
+if [ -f modules/blockchain_module/manifest.json ]; then
+  INSTALLED_VER="$(jq -r '.version // empty' modules/blockchain_module/manifest.json 2>/dev/null || true)"
+fi
+if [ -n "$INSTALLED_VER" ] && [ "$INSTALLED_VER" = "${BLOCKCHAIN_MODULE_VERSION}" ]; then
+  ok "blockchain_module ${INSTALLED_VER} already in ./modules (cached/pre-warmed) — skipping download + install"
 else
+  [ -n "$INSTALLED_VER" ] && echo "  cached module is v${INSTALLED_VER} ≠ target ${BLOCKCHAIN_MODULE_VERSION} → re-installing"
   LGX="blockchain_module-${BLOCKCHAIN_MODULE_VERSION}.lgx"
   [ -f "$LGX" ] || lgpd download blockchain_module --version "${BLOCKCHAIN_MODULE_VERSION}" --output ./
   ok "have $LGX"
   echo "  (a 'Package is unsigned' warning below is normal for testnet modules — safe to proceed)"
+  rm -rf modules/blockchain_module 2>/dev/null || true   # clear any stale version before installing
   lgpm --modules-dir ./modules install --file "$LGX"
   ok "installed into ./modules"
 fi
@@ -88,11 +98,18 @@ else
   tmux kill-session -t node 2>/dev/null || true
   tmux new-session -d -s node "cd $NODE_HOME && APPIMAGE_EXTRACT_AND_RUN=1 PATH=$NODE_HOME/bin:\$PATH logoscore -m ./modules -D >$NODE_HOME/logoscore.out 2>&1"
   # Wait for the daemon to accept RPC by RETRYING the load itself (self-validating) instead of a flat
-  # sleep 6 — the load succeeds the moment the daemon is ready (usually ~2-3s), with a ~10s ceiling.
+  # sleep 6 — the load succeeds the moment the daemon is ready (usually ~2-3s). Each attempt is bounded
+  # by `timeout` so a wedged daemon can't hang the loop; if it never takes, fail loudly with the log.
   sleep 1
-  for _ in $(seq 1 22); do logoscore load-module blockchain_module >/dev/null 2>&1 && break; sleep 0.4; done
+  loaded=0
+  for _ in $(seq 1 22); do
+    timeout 5 logoscore load-module blockchain_module >/dev/null 2>&1 && { loaded=1; break; }
+    sleep 0.4
+  done
+  [ "$loaded" = 1 ] || die "daemon did not accept load-module within ~12s — the node did not start. Last log lines:
+$(tail -n 15 "$NODE_HOME/logoscore.out" 2>/dev/null)"
 fi
-logoscore load-module blockchain_module >/dev/null 2>&1 || true    # idempotent (no-op if already loaded above)
+timeout 5 logoscore load-module blockchain_module >/dev/null 2>&1 || true    # idempotent (no-op if loaded above)
 ok "blockchain_module loaded"
 
 # ── Step 3: generate user_config with bootstrap peers, then start ────────────
@@ -125,13 +142,27 @@ fi
 # FOREGROUND, so launch it DETACHED in its own tmux session (same idiom as start-on-boot.sh) — idempotent.
 if [ "${DASHBOARD:-1}" = "1" ]; then
   log "Start the dashboard (tmux 'dashboard', :${PORT:-8090} over the tailnet)"
+  # run.sh binds the Tailscale IP by default (loopback fallback) — health-check the SAME address.
+  TSIP="$(tailscale ip -4 2>/dev/null | head -1 || true)"
+  DASH_HOST="${TSIP:-127.0.0.1}"
+  DASH_URL="http://${DASH_HOST}:${PORT:-8090}/"
   if command -v tmux >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
-    if tmux has-session -t dashboard 2>/dev/null; then
-      ok "dashboard already running (tmux 'dashboard')"
-    elif tmux new-session -d -s dashboard "cd '$HERE/..' && bash dashboard/run.sh >>'$NODE_HOME/dashboard.log' 2>&1"; then
-      ok "dashboard started → tmux 'dashboard' (:${PORT:-8090})"
+    if tmux has-session -t dashboard 2>/dev/null && curl -fsS -o /dev/null --max-time 4 "$DASH_URL" 2>/dev/null; then
+      ok "dashboard already running + serving (tmux 'dashboard')"
     else
-      echo "  ⚠ could not start dashboard (non-fatal) — later:  tmux new-session -d -s dashboard 'bash dashboard/run.sh'"
+      tmux kill-session -t dashboard 2>/dev/null || true   # clear a dead / name-colliding session
+      REPO_ROOT="$(cd "$HERE/.." && pwd)"
+      # -c sets the cwd and -e passes the log path as an env var, so neither is reparsed as a shell string
+      # (a path containing spaces/quotes can't break or inject into the tmux command).
+      tmux new-session -d -s dashboard -c "$REPO_ROOT" -e "DASH_LOG=$NODE_HOME/dashboard.log" \
+        'bash dashboard/run.sh >>"$DASH_LOG" 2>&1' 2>/dev/null || true
+      up=0
+      for _ in $(seq 1 12); do curl -fsS -o /dev/null --max-time 3 "$DASH_URL" 2>/dev/null && { up=1; break; }; sleep 0.5; done
+      if [ "$up" = 1 ]; then
+        ok "dashboard started + serving → http://${DASH_HOST}:${PORT:-8090}"
+      else
+        echo "  ⚠ dashboard did not answer on ${DASH_HOST}:${PORT:-8090} (non-fatal) — check $NODE_HOME/dashboard.log"
+      fi
     fi
   else
     echo "  ⚠ tmux/python3 missing → dashboard skipped (non-fatal); start later with dashboard/run.sh in a tmux session"
