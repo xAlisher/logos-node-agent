@@ -94,9 +94,18 @@ for the demo, show *funded + Online + height tracking tip*).
 
 - **Empty IBD peers → "syncs nothing"** (GUI bug #3153 / module#54): we pass peers to `generate_user_config`,
   so both config blocks get populated. The CLI path is immune.
-- **Single-host bootstrap abort** (#3166): the four release peers are all one host (`65.109.51.37`). If it's
-  unreachable the node *hard-aborts*. **Not mitigated by default** — you *should* add a diverse peer you
-  control via `EXTRA_PEERS` in `config/node.env` (we don't ship one; a good peer is operator-specific).
+- **Single-host bootstrap abort + seed outages** (#3166): the four release peers are all one host
+  (`65.109.51.37`). If it's unreachable the node can't onboard. **Seen in the wild 2026-08-10** — a failed
+  deployment took those seeds offline (logos-blockchain#3293); every *fresh/restarted* node was locked out
+  (0 peers, QUIC handshake timeouts) while already-synced nodes survived on discovered peers. Worse, a node
+  that loses all peers **stops dialing and won't self-recover** even after the seeds return — it needs a
+  manual restart (logos-blockchain#3294). **Mitigations:** add a diverse peer you control via `EXTRA_PEERS`
+  in `config/node.env`; if stuck at 0 peers, first check whether a *known-good* node is failing the *same*
+  seeds (shared outage, not your box) before wiping anything — a wipe never fixes a peer-connectivity problem.
+- **v0.2.1 chain halts (node-wallet UTXO double-spend)**: under L1-fee pressure (new in 0.2.1) the node
+  wallet could double-spend a UTXO paying fees → chain halt (logos-blockchain#3287). Fixed in the **patched
+  0.2.2 module** (see `node.env` — bump once it's in the lgpd registry). Heavy-fee-paying nodes (e.g. LEZ)
+  also bump `pending_note_expiry_blocks` 10→120; a plain staking node is unlikely to hit it.
 - **Re-genesis every release**: 0.2.0→0.2.1 wiped balances. Never restore a pre-genesis snapshot; run 1 syncs
   from scratch → we snapshot *that* synced state for runs 2–3.
 - **Restart during bootstrap loses progress** — don't restart a bootstrapping node; let it reach Online.
