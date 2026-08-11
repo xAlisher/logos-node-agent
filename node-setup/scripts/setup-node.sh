@@ -94,6 +94,7 @@ log "Start logoscore daemon (persistent tmux 'node') + load module"
 # (and on a FUSE box its AppImage mount vanishes, hanging it). The tmux session is the node's supervisor.
 if curl -s "$API/cryptarchia/info" >/dev/null 2>&1; then
   ok "node API already up — leaving the running daemon"
+  loaded=1   # /cryptarchia/info is served BY blockchain_module → an answering API means it's already loaded
 else
   tmux kill-session -t node 2>/dev/null || true
   tmux new-session -d -s node "cd $NODE_HOME && APPIMAGE_EXTRACT_AND_RUN=1 PATH=$NODE_HOME/bin:\$PATH logoscore -m ./modules -D >$NODE_HOME/logoscore.out 2>&1"
@@ -106,10 +107,10 @@ else
     timeout 5 logoscore load-module blockchain_module >/dev/null 2>&1 && { loaded=1; break; }
     sleep 0.4
   done
-  [ "$loaded" = 1 ] || die "daemon did not accept load-module within ~12s — the node did not start. Last log lines:
-$(tail -n 15 "$NODE_HOME/logoscore.out" 2>/dev/null)"
 fi
-timeout 5 logoscore load-module blockchain_module >/dev/null 2>&1 || true    # idempotent (no-op if loaded above)
+# Only claim "loaded" once it's actually confirmed (loaded=1), else fail loudly with the log.
+[ "${loaded:-0}" = 1 ] || die "daemon did not accept load-module within ~12s — the node did not start. Last log lines:
+$(tail -n 15 "$NODE_HOME/logoscore.out" 2>/dev/null)"
 ok "blockchain_module loaded"
 
 # ── Step 3: generate user_config with bootstrap peers, then start ────────────
@@ -144,7 +145,13 @@ if [ "${DASHBOARD:-1}" = "1" ]; then
   log "Start the dashboard (tmux 'dashboard', :${PORT:-8090} over the tailnet)"
   # run.sh binds the Tailscale IP by default (loopback fallback) — health-check the SAME address.
   TSIP="$(tailscale ip -4 2>/dev/null | head -1 || true)"
-  DASH_HOST="${TSIP:-127.0.0.1}"
+  # Health-check the SAME address run.sh binds: an explicit HOST wins (0.0.0.0 → probe loopback),
+  # otherwise the Tailscale IP, otherwise loopback — so an overridden HOST can't cause a false failure.
+  if [ -n "${HOST:-}" ]; then
+    DASH_HOST="$HOST"; [ "$HOST" = "0.0.0.0" ] && DASH_HOST="127.0.0.1"
+  else
+    DASH_HOST="${TSIP:-127.0.0.1}"
+  fi
   DASH_URL="http://${DASH_HOST}:${PORT:-8090}/"
   if command -v tmux >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
     if tmux has-session -t dashboard 2>/dev/null && curl -fsS -o /dev/null --max-time 4 "$DASH_URL" 2>/dev/null; then
