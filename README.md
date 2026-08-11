@@ -1,5 +1,8 @@
 # logos-node-agent
 
+> This is a personal, experimental hobby project. It is not an official Logos product. Not audited.
+
+
 **Point your AI agent at this repo and get a running Logos blockchain node.**
 
 Clone it onto a Linux box, tell your agent (Claude Code or similar) to read **[AGENT.md](AGENT.md)**, and it
