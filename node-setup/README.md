@@ -67,10 +67,22 @@ no sudo**. The only sudo is box-prep `apt` (done once). Surviving a power *outag
 
 ```bash
 git clone https://github.com/xAlisher/logos-node-agent.git && cd logos-node-agent
-node-setup/scripts/setup-node.sh      # → node bootstrapping (run 1 syncs from scratch, ~1h to Online)
+node-setup/scripts/setup-node.sh      # install + config + start + dashboard; node bootstrapping (~1h to Online)
 node-setup/scripts/healthcheck.sh     # → GREEN when peers > 0 and height climbs
-dashboard/run.sh                      # → dashboard on :8090, open it from your phone over the tailnet
+# the dashboard now auto-starts on :8090 (tmux 'dashboard') — open it from your phone over the tailnet
 ```
+
+**Fast workshop path — pre-warm the box (green in ~5–10 s).** The ~255 MB download (tools + module) is the
+bulk of setup. Do it ONCE during box-prep, then the workshop run skips it:
+```bash
+PREWARM=1 node-setup/scripts/setup-node.sh   # box-prep: stage tools+module, do NOT start the node
+# … at workshop time, on the same box:
+node-setup/scripts/setup-node.sh             # skips download+install → GREEN in ~5–10 s
+```
+Measured on optiplex: **28 s** cold → **~22 s** (RPC-readiness poll replaces fixed waits) → **~5–10 s
+pre-warmed** (floor = daemon start + first block landing). `healthcheck.sh` green = peers > 0 and height
+climbing; reaching `Online` still takes the ~1 h bootstrap window (that's a separate, network-bound lever —
+see the state-snapshot skill).
 
 ## Fund it (curl the faucet — no web form)
 
