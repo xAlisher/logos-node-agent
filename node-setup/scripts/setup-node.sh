@@ -104,13 +104,35 @@ else
   echo "  (PERSIST=0 → skipped; the node runs only until the box reboots)"
 fi
 
-# ── Step 5: (optional) auto-fund from the faucet via curl — AUTOFUND=1 to enable ──
+# ── Step 5: dashboard (auto-start by default; DASHBOARD=0 to skip) ────────────
+# A phone-viewable, read-only dashboard on :8090 over the tailnet. dashboard/run.sh execs in the
+# FOREGROUND, so launch it DETACHED in its own tmux session (same idiom as start-on-boot.sh) — idempotent.
+if [ "${DASHBOARD:-1}" = "1" ]; then
+  log "Start the dashboard (tmux 'dashboard', :${PORT:-8090} over the tailnet)"
+  if command -v tmux >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+    if tmux has-session -t dashboard 2>/dev/null; then
+      ok "dashboard already running (tmux 'dashboard')"
+    elif tmux new-session -d -s dashboard "cd '$HERE/..' && bash dashboard/run.sh >>'$NODE_HOME/dashboard.log' 2>&1"; then
+      ok "dashboard started → tmux 'dashboard' (:${PORT:-8090})"
+    else
+      echo "  ⚠ could not start dashboard (non-fatal) — later:  tmux new-session -d -s dashboard 'bash dashboard/run.sh'"
+    fi
+  else
+    echo "  ⚠ tmux/python3 missing → dashboard skipped (non-fatal); start later with dashboard/run.sh in a tmux session"
+  fi
+else
+  echo "  (DASHBOARD=0 → skipped; start later with dashboard/run.sh in a tmux session)"
+fi
+
+# ── Step 6: (optional) auto-fund from the faucet via curl — AUTOFUND=1 to enable ──
 if [ "${AUTOFUND:-0}" = "1" ]; then
   log "Auto-funding from the faucet (AUTOFUND=1)"
   "$HERE/scripts/fund-node.sh" || echo "  ⚠ auto-fund failed (non-fatal) — run scripts/fund-node.sh later"
 fi
 
 echo
+TSIP="$(tailscale ip -4 2>/dev/null | head -1 || true)"
+[ "${DASHBOARD:-1}" = "1" ] && echo "Dashboard: http://${TSIP:-<tailscale-ip>}:${PORT:-8090}   (watch it from your phone over Tailscale)"
 echo "Next: watch it go green →  scripts/healthcheck.sh   (green = n_peers>0 AND height climbing → mode Online)"
 echo "Fund it (curl, no web form) →  scripts/fund-node.sh   (or run setup with AUTOFUND=1 to fund automatically)"
 echo "   manual fallback: grep -A3 known_keys $NODE_HOME/user_config.yaml   then  $FAUCET_URL"
