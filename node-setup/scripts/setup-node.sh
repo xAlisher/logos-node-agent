@@ -56,14 +56,27 @@ else
 fi
 command -v logoscore >/dev/null || die "logoscore not on PATH after install"
 
-# ── Step 2: download + install the blockchain module, load it ────────────────
-log "Download + install blockchain_module ${BLOCKCHAIN_MODULE_VERSION}"
-LGX="blockchain_module-${BLOCKCHAIN_MODULE_VERSION}.lgx"
-[ -f "$LGX" ] || lgpd download blockchain_module --version "${BLOCKCHAIN_MODULE_VERSION}" --output ./
-ok "have $LGX"
-echo "  (a 'Package is unsigned' warning below is normal for testnet modules — safe to proceed)"
-lgpm --modules-dir ./modules install --file "$LGX"
-ok "installed into ./modules"
+# ── Step 2: provision the blockchain module (skip download+install if already present) ──
+log "Provision blockchain_module ${BLOCKCHAIN_MODULE_VERSION}"
+if [ -d modules/blockchain_module ]; then
+  ok "blockchain_module already in ./modules (cached/pre-warmed) — skipping download + install"
+else
+  LGX="blockchain_module-${BLOCKCHAIN_MODULE_VERSION}.lgx"
+  [ -f "$LGX" ] || lgpd download blockchain_module --version "${BLOCKCHAIN_MODULE_VERSION}" --output ./
+  ok "have $LGX"
+  echo "  (a 'Package is unsigned' warning below is normal for testnet modules — safe to proceed)"
+  lgpm --modules-dir ./modules install --file "$LGX"
+  ok "installed into ./modules"
+fi
+
+# ── Pre-warm exit: stage tools+module on a workshop box WITHOUT starting the node ──
+# Run once during box-prep:  PREWARM=1 node-setup/scripts/setup-node.sh
+# Then a plain run at workshop time skips the download+install and reaches green in ~10s.
+if [ "${PREWARM:-0}" = "1" ]; then
+  ok "PREWARM=1 → tools + blockchain_module staged in $NODE_HOME; node NOT started."
+  echo "  At workshop time run:  node-setup/scripts/setup-node.sh   (→ green in ~10s, no downloads)"
+  exit 0
+fi
 
 log "Start logoscore daemon (persistent tmux 'node') + load module"
 # Run the daemon inside a dedicated tmux session so it survives whoever launched setup — a cold agent that
@@ -74,9 +87,12 @@ if curl -s "$API/cryptarchia/info" >/dev/null 2>&1; then
 else
   tmux kill-session -t node 2>/dev/null || true
   tmux new-session -d -s node "cd $NODE_HOME && APPIMAGE_EXTRACT_AND_RUN=1 PATH=$NODE_HOME/bin:\$PATH logoscore -m ./modules -D >$NODE_HOME/logoscore.out 2>&1"
-  sleep 6
+  # Wait for the daemon to accept RPC by RETRYING the load itself (self-validating) instead of a flat
+  # sleep 6 — the load succeeds the moment the daemon is ready (usually ~2-3s), with a ~10s ceiling.
+  sleep 1
+  for _ in $(seq 1 22); do logoscore load-module blockchain_module >/dev/null 2>&1 && break; sleep 0.4; done
 fi
-logoscore load-module blockchain_module || true    # idempotent: errors if already loaded
+logoscore load-module blockchain_module >/dev/null 2>&1 || true    # idempotent (no-op if already loaded above)
 ok "blockchain_module loaded"
 
 # ── Step 3: generate user_config with bootstrap peers, then start ────────────
