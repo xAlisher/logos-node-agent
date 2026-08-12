@@ -1,7 +1,7 @@
 # AGENT.md — read this first
 
 You are an AI agent (e.g. Claude Code) that has just been pointed at this repo on a Linux box. Your job:
-**get this box to a green Logos blockchain node (0.2.1), picking up from wherever it already is.** Be
+**get this box to a green Logos blockchain node (the release pinned in `node-setup/config/node.env`), picking up from wherever it already is.** Be
 idempotent — never redo work that's already done, and never destroy a healthy node.
 
 > ## ⛔ TWO GATES — you must not skip these, even if the goal seems obvious
@@ -61,7 +61,7 @@ you're about to do, how long it takes, and where you'll need them.** Then ask pe
 
 > Here's what I found: your box is ready (Ubuntu, Tailscale, deps all good) and there's **no node yet**.
 > So my plan is:
-> 1. Install the Logos node tools + the `blockchain_module 0.2.1` package *(~2 min)*
+> 1. Install the Logos node tools + the pinned `blockchain_module` package (currently 0.2.2) *(~2 min)*
 > 2. Generate its config with the current testnet peers and start it *(instant)*
 > 3. Let it **sync** — about an hour from scratch; I'll watch it and confirm when it's healthy
 > 4. Bring up a little **dashboard** you can open from your phone
@@ -96,7 +96,7 @@ the assess output). Example:
 
 > ✅ **Your Logos node is up and running.**
 >
-> **What I did:** installed the node tools + `blockchain_module 0.2.1`, generated its config with the current
+> **What I did:** installed the node tools + `blockchain_module` (0.2.2, per node.env), generated its config with the current
 > testnet peers, started it syncing, and brought up a dashboard.
 >
 > **Node status:** `Bootstrapping`, height 12,180 and climbing, **48 peers** — GREEN. It'll reach `Online`
@@ -145,6 +145,6 @@ Always include the **dashboard link** (the node's "face") and the one-line statu
 - `node-setup/` — the node: `README.md` (runbook), `config/node.env` (bump per release), `scripts/`
   (`setup-node.sh`, `healthcheck.sh`, `fund-node.sh` (curl the faucet — no web form),
   `install-persistence.sh` + `start-on-boot.sh` (sudo-free reboot survival, installed by default), `uninstall.sh`)
-- `dashboard/` — local Python dashboard on `:8090`, reached over the tailnet (0.2.1-schema-aware)
+- `dashboard/` — local Python dashboard on `:8090`, reached over the tailnet (0.2.x-schema-aware)
 - `box-setup/` — optional fresh-box prep (Ubuntu / deps / Tailscale / Claude Code), reference docs
 - `skills/` — recovery + pitfall playbooks (crash-loop, circuits/wallet, proposals, state-copy)
